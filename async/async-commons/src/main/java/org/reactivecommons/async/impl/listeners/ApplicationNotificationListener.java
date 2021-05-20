@@ -7,6 +7,7 @@ import org.reactivecommons.async.api.handlers.registered.RegisteredEventListener
 import org.reactivecommons.async.impl.DiscardNotifier;
 import org.reactivecommons.async.impl.EventExecutor;
 import org.reactivecommons.async.impl.HandlerResolver;
+import org.reactivecommons.async.impl.communications.Argument;
 import org.reactivecommons.async.impl.communications.Message;
 import org.reactivecommons.async.impl.communications.ReactiveMessageListener;
 import org.reactivecommons.async.impl.communications.TopologyCreator;
@@ -15,6 +16,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.rabbitmq.AcknowledgableDelivery;
 
+import java.util.Optional;
 import java.util.function.Function;
 
 import static reactor.core.publisher.Flux.fromIterable;
@@ -28,18 +30,20 @@ public class ApplicationNotificationListener extends GenericMessageListener {
     private final MessageConverter messageConverter;
     private final HandlerResolver resolver;
     private final String exchangeName;
-
+    private final Argument argument;
 
     public ApplicationNotificationListener(ReactiveMessageListener receiver,
                                            String exchangeName,
                                            String queueName,
                                            HandlerResolver handlerResolver,
                                            MessageConverter messageConverter,
-                                           DiscardNotifier discardNotifier) {
-        super(queueName,receiver,false,1,discardNotifier,"event");
+                                           DiscardNotifier discardNotifier,
+                                           Argument argument) {
+        super(queueName, receiver, false, 1, discardNotifier, "event");
         this.resolver = handlerResolver;
         this.messageConverter = messageConverter;
         this.exchangeName = exchangeName;
+        this.argument = argument;
     }
 
     protected Mono<Void> setUpBindings(TopologyCreator creator) {
@@ -47,11 +51,7 @@ public class ApplicationNotificationListener extends GenericMessageListener {
                 .type("topic")
                 .durable(true));
 
-        final Mono<AMQP.Queue.DeclareOk> declareQueue = creator.declare(
-                queue(queueName)
-                .durable(false)
-                .autoDelete(true)
-                .exclusive(true));
+        final Mono<AMQP.Queue.DeclareOk> declareQueue = creator.declareQueue(queueName, false, true, true, argument);
 
         final Flux<AMQP.Queue.BindOk> bindings = fromIterable(resolver.getNotificationListeners())
                 .flatMap(listener -> creator.bind(binding(exchangeName, listener.getPath(), queueName)));

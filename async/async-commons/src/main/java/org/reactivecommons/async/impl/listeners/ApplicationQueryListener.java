@@ -7,10 +7,7 @@ import org.reactivecommons.async.impl.DiscardNotifier;
 import org.reactivecommons.async.impl.HandlerResolver;
 import org.reactivecommons.async.impl.Headers;
 import org.reactivecommons.async.impl.QueryExecutor;
-import org.reactivecommons.async.impl.communications.Message;
-import org.reactivecommons.async.impl.communications.ReactiveMessageListener;
-import org.reactivecommons.async.impl.communications.ReactiveMessageSender;
-import org.reactivecommons.async.impl.communications.TopologyCreator;
+import org.reactivecommons.async.impl.communications.*;
 import org.reactivecommons.async.impl.converters.MessageConverter;
 import reactor.core.publisher.Mono;
 import reactor.rabbitmq.AcknowledgableDelivery;
@@ -19,6 +16,7 @@ import reactor.rabbitmq.ExchangeSpecification;
 import reactor.rabbitmq.QueueSpecification;
 
 import java.util.HashMap;
+import java.util.Optional;
 import java.util.function.Function;
 
 import static java.lang.Boolean.TRUE;
@@ -37,9 +35,12 @@ public class ApplicationQueryListener extends GenericMessageListener {
     private final String directExchange;
     private final boolean withDLQRetry;
     private final int retryDelay;
+    private final Argument argument;
 
-
-    public ApplicationQueryListener(ReactiveMessageListener listener, String queueName, HandlerResolver resolver, ReactiveMessageSender sender, String directExchange, MessageConverter converter, String replyExchange, boolean withDLQRetry, long maxRetries, int retryDelay, DiscardNotifier discardNotifier) {
+    public ApplicationQueryListener(ReactiveMessageListener listener, String queueName, HandlerResolver resolver,
+                                    ReactiveMessageSender sender, String directExchange, MessageConverter converter,
+                                    String replyExchange, boolean withDLQRetry, long maxRetries, int retryDelay,
+                                    DiscardNotifier discardNotifier, Argument argument) {
         super(queueName, listener, withDLQRetry, maxRetries, discardNotifier, "query");
         this.retryDelay = retryDelay;
         this.withDLQRetry = withDLQRetry;
@@ -48,6 +49,7 @@ public class ApplicationQueryListener extends GenericMessageListener {
         this.sender = sender;
         this.replyExchange = replyExchange;
         this.directExchange = directExchange;
+        this.argument = argument;
     }
 
 
@@ -67,14 +69,14 @@ public class ApplicationQueryListener extends GenericMessageListener {
         if (withDLQRetry) {
             final Mono<AMQP.Exchange.DeclareOk> declareExchange = creator.declare(ExchangeSpecification.exchange(directExchange).durable(true).type("direct"));
             final Mono<AMQP.Exchange.DeclareOk> declareExchangeDLQ = creator.declare(ExchangeSpecification.exchange(directExchange+".DLQ").durable(true).type("direct"));
-            final Mono<AMQP.Queue.DeclareOk> declareQueue = creator.declareQueue(queueName, directExchange+".DLQ");
-            final Mono<AMQP.Queue.DeclareOk> declareDLQ = creator.declareDLQ(queueName, directExchange, retryDelay);
+            final Mono<AMQP.Queue.DeclareOk> declareQueue = creator.declareQueue(queueName, directExchange+".DLQ", argument);
+            final Mono<AMQP.Queue.DeclareOk> declareDLQ = creator.declareDLQ(queueName, directExchange, retryDelay, argument);
             final Mono<AMQP.Queue.BindOk> binding = creator.bind(BindingSpecification.binding(directExchange, queueName, queueName));
             final Mono<AMQP.Queue.BindOk> bindingDLQ = creator.bind(BindingSpecification.binding(directExchange+".DLQ", queueName, queueName + ".DLQ"));
             return declareExchange.then(declareExchangeDLQ).then(declareQueue).then(declareDLQ).then(binding).then(bindingDLQ).then();
         } else {
             final Mono<AMQP.Exchange.DeclareOk> declareExchange = creator.declare(ExchangeSpecification.exchange(directExchange).durable(true).type("direct"));
-            final Mono<AMQP.Queue.DeclareOk> declareQueue = creator.declare(QueueSpecification.queue(queueName).durable(true));
+            final Mono<AMQP.Queue.DeclareOk> declareQueue = creator.declareQueue(queueName, argument);
             final Mono<AMQP.Queue.BindOk> binding = creator.bind(BindingSpecification.binding(directExchange, queueName, queueName));
             return declareExchange.then(declareQueue).then(binding).then();
         }

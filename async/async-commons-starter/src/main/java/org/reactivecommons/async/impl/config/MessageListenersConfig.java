@@ -11,6 +11,7 @@ import org.reactivecommons.async.api.handlers.registered.RegisteredQueryHandler;
 import org.reactivecommons.async.impl.DiscardNotifier;
 import org.reactivecommons.async.impl.DynamicRegistryImp;
 import org.reactivecommons.async.impl.HandlerResolver;
+import org.reactivecommons.async.impl.communications.Argument;
 import org.reactivecommons.async.impl.communications.ReactiveMessageListener;
 import org.reactivecommons.async.impl.communications.ReactiveMessageSender;
 import org.reactivecommons.async.impl.config.props.AsyncProps;
@@ -48,21 +49,33 @@ public class MessageListenersConfig {
         final ApplicationEventListener listener = new ApplicationEventListener(receiver,
                 appName + ".subsEvents", resolver, asyncProps.getDomain().getEvents().getExchange(),
                 messageConverter, asyncProps.getWithDLQRetry(), asyncProps.getMaxRetries(), asyncProps.getRetryDelay(),
-                discardNotifier);
+                discardNotifier,
+                Argument.builder()
+                        .maxLengthBytes(asyncProps.getDomain().getEvents().getMaxLengthBytes())
+                        .overflow(asyncProps.getDomain().getEvents().getOverflow())
+                        .queueMode(asyncProps.getDomain().getEvents().getQueueMode())
+                        .build()
+        );
         listener.startListener();
         return listener;
     }
 
     @Bean
     public ApplicationNotificationListener eventNotificationListener(HandlerResolver resolver, MessageConverter messageConverter,
-                                                         ReactiveMessageListener receiver, DiscardNotifier discardNotifier) {
+                                                                     ReactiveMessageListener receiver, DiscardNotifier discardNotifier) {
         final ApplicationNotificationListener listener = new ApplicationNotificationListener(
                 receiver,
                 asyncProps.getDomain().getEvents().getExchange(),
                 asyncProps.getNotificationProps().getQueueName(appName),
                 resolver,
                 messageConverter,
-                discardNotifier);
+                discardNotifier,
+                Argument.builder()
+                        .maxLengthBytes(asyncProps.getNotificationProps().getMaxLengthBytes())
+                        .overflow(asyncProps.getNotificationProps().getOverflow())
+                        .queueMode(asyncProps.getNotificationProps().getQueueMode())
+                        .build()
+        );
         listener.startListener();
         return listener;
     }
@@ -73,8 +86,17 @@ public class MessageListenersConfig {
                                                   DiscardNotifier discardNotifier) {
         final ApplicationQueryListener listener = new ApplicationQueryListener(rlistener,
                 appName + ".query", resolver, sender, asyncProps.getDirect().getExchange(), converter,
-                "globalReply", asyncProps.getWithDLQRetry(), asyncProps.getMaxRetries(),
-                asyncProps.getRetryDelay(), discardNotifier);
+                asyncProps.getGlobal().getExchange(),
+                asyncProps.getWithDLQRetry(),
+                asyncProps.getMaxRetries(),
+                asyncProps.getRetryDelay(),
+                discardNotifier,
+                Argument.builder()
+                        .maxLengthBytes(asyncProps.getGlobal().getMaxLengthBytes())
+                        .overflow(asyncProps.getGlobal().getOverflow())
+                        .queueMode(asyncProps.getGlobal().getQueueMode())
+                        .build()
+        );
         listener.startListener();
         return listener;
     }
@@ -85,7 +107,13 @@ public class MessageListenersConfig {
                                                                  DiscardNotifier discardNotifier) {
         ApplicationCommandListener commandListener = new ApplicationCommandListener(listener, appName, resolver,
                 asyncProps.getDirect().getExchange(), converter, asyncProps.getWithDLQRetry(), asyncProps.getMaxRetries(),
-                asyncProps.getRetryDelay(), discardNotifier);
+                asyncProps.getRetryDelay(), discardNotifier,
+                Argument.builder()
+                        .maxLengthBytes(asyncProps.getDirect().getMaxLengthBytes())
+                        .overflow(asyncProps.getDirect().getOverflow())
+                        .queueMode(asyncProps.getDirect().getQueueMode())
+                        .build()
+        );
         commandListener.startListener();
         return commandListener;
     }

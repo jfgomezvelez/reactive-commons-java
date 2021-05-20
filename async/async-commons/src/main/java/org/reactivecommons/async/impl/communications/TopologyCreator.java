@@ -10,6 +10,9 @@ import reactor.rabbitmq.Sender;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
+
+import static reactor.rabbitmq.QueueSpecification.queue;
 
 @Log
 /*
@@ -43,22 +46,62 @@ public class TopologyCreator {
                 .onErrorMap(TopologyDefException::new);
     }
 
-    public Mono<AMQP.Queue.DeclareOk> declareDLQ(String originQueue, String retryTarget, int retryTime){
+    public Mono<AMQP.Queue.DeclareOk> declareDLQ(String originQueue, String retryTarget, int retryTime,
+                                                 Argument argument){
         final Map<String, Object> args = new HashMap<>();
         args.put("x-dead-letter-exchange", retryTarget);
         args.put("x-message-ttl", retryTime);
+        argument.getMaxLengthBytes().ifPresent(maxLengthBytes -> args.put("x-max-length-bytes", maxLengthBytes));
+        argument.getOverflow().ifPresent(overflow -> args.put("overflow", overflow));
+        argument.getQueueMode().ifPresent(queueMode -> args.put("queue-mode", queueMode));
         QueueSpecification specification = QueueSpecification.queue(originQueue + ".DLQ")
                 .durable(true)
                 .arguments(args);
         return declare(specification);
     }
 
-    public Mono<AMQP.Queue.DeclareOk> declareQueue(String name, String dlqExchange){
+    public Mono<AMQP.Queue.DeclareOk> declareQueue(String name, String dlqExchange, Argument argument){
         final Map<String, Object> args = new HashMap<>();
         args.put("x-dead-letter-exchange", dlqExchange);
+
+        argument.getMaxLengthBytes().ifPresent(maxLengthBytes -> args.put("x-max-length-bytes", maxLengthBytes));
+        argument.getOverflow().ifPresent(overflow -> args.put("overflow", overflow));
+        argument.getQueueMode().ifPresent(queueMode -> args.put("queue-mode", queueMode));
+
         QueueSpecification specification = QueueSpecification.queue(name)
                 .durable(true)
                 .arguments(args);
+        return declare(specification);
+    }
+
+    public Mono<AMQP.Queue.DeclareOk> declareQueue(String name, Argument argument) {
+        QueueSpecification specification = QueueSpecification.queue(name)
+                .durable(true);
+        final Map<String, Object> args = new HashMap<>();
+
+        argument.getMaxLengthBytes().ifPresent(maxLengthBytes -> args.put("x-max-length-bytes", maxLengthBytes));
+        argument.getOverflow().ifPresent(overflow -> args.put("overflow", overflow));
+        argument.getQueueMode().ifPresent(queueMode -> args.put("queue-mode", queueMode));
+
+        specification.arguments(args);
+
+        return declare(specification);
+    }
+
+    public Mono<AMQP.Queue.DeclareOk> declareQueue(String name, boolean durable,boolean autoDelete, boolean exclusive,
+                                                   Argument argument){
+        final Map<String, Object> args = new HashMap<>();
+
+        argument.getMaxLengthBytes().ifPresent(maxLengthBytes -> args.put("x-max-length-bytes", maxLengthBytes));
+        argument.getOverflow().ifPresent(overflow -> args.put("overflow", overflow));
+        argument.getQueueMode().ifPresent(queueMode -> args.put("queue-mode", queueMode));
+
+        QueueSpecification specification = QueueSpecification.queue(name)
+                .durable(durable)
+                .autoDelete(autoDelete)
+                .exclusive(exclusive)
+                .arguments(args);
+
         return declare(specification);
     }
 
