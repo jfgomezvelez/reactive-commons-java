@@ -1,0 +1,12 @@
+ext {
+    artifactId = 'async-service-bus'
+    artifactDescription = 'Async Service Bus'
+}
+
+dependencies {
+    compileOnly 'org.springframework.boot:spring-boot-starter'
+
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+
+    testImplementation 'io.projectreactor:reactor-test'
+}
