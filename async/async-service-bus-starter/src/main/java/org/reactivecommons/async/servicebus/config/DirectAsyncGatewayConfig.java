@@ -12,15 +12,18 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 
 @Configuration
-@Import(ServiceBusConfig.class)
 @RequiredArgsConstructor
+@Import(ServiceBusConfig.class)
 public class DirectAsyncGatewayConfig {
 
     private final BrokerConfigProps props;
 
     @Bean
-    public RabbitDirectAsyncGateway rabbitDirectAsyncGateway(BrokerConfig config, ReactiveReplyRouter router, ReactiveMessageSender rSender, MessageConverter converter) throws Exception {
-        return new RabbitDirectAsyncGateway(rSender);
+    public RabbitDirectAsyncGateway rabbitDirectAsyncGateway(BrokerConfig config,
+                                                             ReactiveReplyRouter router,
+                                                             ReactiveMessageSender reactiveMessageSender,
+                                                             MessageConverter converter) throws Exception {
+        return new RabbitDirectAsyncGateway(reactiveMessageSender);
     }
 
 //    @Bean
@@ -35,6 +38,4 @@ public class DirectAsyncGatewayConfig {
     public ReactiveReplyRouter router() {
         return new ReactiveReplyRouter();
     }
-
-
 }
