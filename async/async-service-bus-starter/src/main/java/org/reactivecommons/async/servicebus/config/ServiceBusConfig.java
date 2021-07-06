@@ -134,6 +134,14 @@ public class ServiceBusConfig {
                 .collect(ConcurrentHashMap::new, (map, handler) -> map.put(handler.getPath(), handler),
                         ConcurrentHashMap::putAll);
 
+        log.info("==================================================================");
+        log.info("queryHandlers " + queryHandlers.size());
+        log.info("eventListeners " + eventListeners.size());
+        log.info("eventNotificationListener " + eventNotificationListener.size());
+        log.info("dynamicEventHandlers " + dynamicEventHandlers.size());
+        log.info("commandHandlers " + commandHandlers.size());
+        log.info("==================================================================");
+
         return new HandlerResolver(queryHandlers, eventListeners, eventNotificationListener,
                 dynamicEventHandlers, commandHandlers) {
             @Override

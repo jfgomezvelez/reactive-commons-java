@@ -1,12 +1,10 @@
 package org.reactivecommons.async.servicebus.config;
 
 import lombok.RequiredArgsConstructor;
-import org.reactivecommons.async.commons.DiscardNotifier;
 import org.reactivecommons.async.commons.converters.MessageConverter;
 import org.reactivecommons.async.commons.ext.CustomReporter;
 import org.reactivecommons.async.servicebus.HandlerResolver;
 import org.reactivecommons.async.servicebus.communucations.ReactiveMessageListener;
-import org.reactivecommons.async.servicebus.config.ServiceBusConfig;
 import org.reactivecommons.async.servicebus.config.props.AsyncProps;
 import org.reactivecommons.async.servicebus.listeners.ApplicationQueryListener;
 import org.springframework.beans.factory.annotation.Value;

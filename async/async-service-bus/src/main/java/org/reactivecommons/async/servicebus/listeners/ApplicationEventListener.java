@@ -1,23 +1,31 @@
 package org.reactivecommons.async.servicebus.listeners;
 
+import org.reactivecommons.async.servicebus.HandlerResolver;
 import org.reactivecommons.async.servicebus.communucations.ReactiveMessageListener;
 import org.reactivecommons.async.servicebus.communucations.TopologyCreator;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 public class ApplicationEventListener extends GenericMessageListener {
 
-    private final String eventsExchange;
+    private final String topicExchange;
+    private final HandlerResolver resolver;
 
-    public ApplicationEventListener(String eventsExchange, String queueName, ReactiveMessageListener reactiveMessageListener) {
-        super(queueName, reactiveMessageListener);
-        this.eventsExchange = eventsExchange;
+    public ApplicationEventListener(String topicExchange, String subscriptionName, ReactiveMessageListener reactiveMessageListener, HandlerResolver resolver) {
+        super(subscriptionName, reactiveMessageListener);
+        this.resolver = resolver;
+        this.topicExchange = topicExchange;
     }
 
     protected Mono<Void> setUpBindings(TopologyCreator creator) {
-        creator.createTopic(eventsExchange);
-        creator.createQueue(queueName);
-
-        return Mono.just("").then();
+        return creator.createTopic(topicExchange)
+                .thenMany(Flux.fromIterable(resolver.getEventListeners())
+                        .flatMap(listener ->
+                                creator.createSubscription(topicExchange, listener.getPath())
+                                        .then(creator.createRulesubscription(topicExchange, listener.getPath(), listener.getPath()))
+                        )
+                )
+                .then();
 //        final Mono<AMQP.Exchange.DeclareOk> declareExchange = creator.declare(ExchangeSpecification.exchange(eventsExchange).durable(true).type("topic"));
 //        final Flux<AMQP.Queue.BindOk> bindings = fromIterable(resolver.getEventListeners()).flatMap(listener -> creator.bind(BindingSpecification.binding(eventsExchange, listener.getPath(), queueName)));
 //        if (withDLQRetry) {

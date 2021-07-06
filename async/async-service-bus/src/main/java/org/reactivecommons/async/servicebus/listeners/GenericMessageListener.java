@@ -1,6 +1,7 @@
 package org.reactivecommons.async.servicebus.listeners;
 
 import lombok.extern.java.Log;
+import org.reactivecommons.async.servicebus.HandlerResolver;
 import org.reactivecommons.async.servicebus.communucations.ReactiveMessageListener;
 import org.reactivecommons.async.servicebus.communucations.TopologyCreator;
 import reactor.core.publisher.Mono;
@@ -11,11 +12,12 @@ import java.util.logging.Level;
 @Log
 public class GenericMessageListener {
 
-    protected final String queueName;
+    protected final String subscriptionName;
     private final ReactiveMessageListener reactiveMessageListener;
 
-    public GenericMessageListener(String queueName, ReactiveMessageListener reactiveMessageListener) {
-        this.queueName = queueName;
+
+    public GenericMessageListener(String subscriptionName, ReactiveMessageListener reactiveMessageListener) {
+        this.subscriptionName = subscriptionName;
         this.reactiveMessageListener = reactiveMessageListener;
     }
 
@@ -35,7 +37,8 @@ public class GenericMessageListener {
 //                        .transform(this::consumeFaultTolerant));
 //
 //        onTerminate();
-        setUpBindings(reactiveMessageListener.getTopologyCreator());
+        setUpBindings(reactiveMessageListener.getTopologyCreator())
+        .subscribe();
     }
 
     protected Mono<Void> setUpBindings(TopologyCreator creator) {
