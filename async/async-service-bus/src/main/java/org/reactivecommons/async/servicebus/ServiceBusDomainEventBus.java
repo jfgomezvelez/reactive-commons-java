@@ -14,7 +14,7 @@ public class ServiceBusDomainEventBus implements DomainEventBus {
 
     @Override
     public <T> Mono<Void> emit(DomainEvent<T> event) {
-        return sender.publish(event, topicName)
+        return sender.publish(event, topicName, event.getName())
                 .onErrorMap(err -> new RuntimeException("Event send failure: " + event.getName(), err));
     }
 }

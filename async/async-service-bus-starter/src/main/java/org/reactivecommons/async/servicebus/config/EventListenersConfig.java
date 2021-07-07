@@ -2,18 +2,17 @@ package org.reactivecommons.async.servicebus.config;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
-import org.reactivecommons.async.commons.DiscardNotifier;
 import org.reactivecommons.async.commons.converters.MessageConverter;
 import org.reactivecommons.async.commons.ext.CustomReporter;
 import org.reactivecommons.async.servicebus.HandlerResolver;
 import org.reactivecommons.async.servicebus.communucations.ReactiveMessageListener;
 import org.reactivecommons.async.servicebus.config.props.AsyncProps;
 import org.reactivecommons.async.servicebus.listeners.ApplicationEventListener;
+import org.reactivecommons.async.servicebus.listeners.Listener;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
-import reactor.core.publisher.Flux;
 
 @Log
 @Configuration
@@ -32,13 +31,11 @@ public class EventListenersConfig {
                                                   ReactiveMessageListener reactiveMessageListener,
                                                   CustomReporter errorReporter) {
 
-        log.info("HandlerResolver " + resolver.getEventListeners().size());
+        final ApplicationEventListener applicationEventListener = new ApplicationEventListener(asyncProps.getDomain().getEvents().getExchange(),
+                appName + ".subsEvents", reactiveMessageListener, resolver, messageConverter);
 
-        final ApplicationEventListener listener = new ApplicationEventListener(asyncProps.getDomain().getEvents().getExchange(),
-                appName + ".subsEvents", reactiveMessageListener, resolver);
+        applicationEventListener.startListener();
 
-        listener.startListener();
-
-        return listener;
+        return applicationEventListener;
     }
 }

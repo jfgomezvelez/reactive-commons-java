@@ -56,15 +56,16 @@ public class ServiceBusConfig {
     private String appName;
 
     @Bean
-    public ReactiveMessageSender messageSender(BrokerConfigProps props, ServiceBusClientBuilder.ServiceBusSenderClientBuilder serviceBusSenderClientBuilder) {
+    public ReactiveMessageSender messageSender(BrokerConfigProps props, ServiceBusClientBuilder.ServiceBusSenderClientBuilder serviceBusSenderClientBuilder, MessageConverter messageConverter) {
         String exchangeName = props.getDomainEventsExchangeName();
-        return new ReactiveMessageSender(serviceBusSenderClientBuilder);
+        return new ReactiveMessageSender(serviceBusSenderClientBuilder, messageConverter);
     }
 
     @Bean
     public ServiceBusClientBuilder.ServiceBusSenderClientBuilder getServiceBusSenderClientBuilder() {
         log.info("Creando objeto de ServiceBusClientBuilder...");
-        String connectionString = "Endpoint=sb://reactivecommons-servicebus.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=I/hFzd5nhUehWfxVR1RwE8tITllYXSz62xvOV7OChNI=";
+        String connectionString = "Endpoint=sb://reactivecommons-servicebus-sofka.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=dqaZiNhGjICV4ZFflQIrWwQ5eCftCMGIwSzqIl+Ib/A=";
+
         return new ServiceBusClientBuilder()
                 .connectionString(connectionString)
                 .sender();
@@ -79,7 +80,7 @@ public class ServiceBusConfig {
     @Bean
     public ManagementClient getManagementClient() {
         log.info("Creando objeto de ManagementClient...");
-        String connectionString = "Endpoint=sb://reactivecommons-servicebus.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=I/hFzd5nhUehWfxVR1RwE8tITllYXSz62xvOV7OChNI=";
+        String connectionString = "Endpoint=sb://reactivecommons-servicebus-sofka.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=dqaZiNhGjICV4ZFflQIrWwQ5eCftCMGIwSzqIl+Ib/A=";
         ConnectionStringBuilder connectionStringBuilder = new ConnectionStringBuilder(connectionString);
         return new ManagementClient(connectionStringBuilder);
     }

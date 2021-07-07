@@ -8,19 +8,17 @@ import reactor.core.publisher.Mono;
 @Log
 public class ApplicationQueryListener extends GenericMessageListener {
 
-    private final String topicExchange;
+    private final String topicName;
 
-    public ApplicationQueryListener(String topicExchange,String subscriptionName, ReactiveMessageListener reactiveMessageListener) {
+    public ApplicationQueryListener(String topicName,String subscriptionName, ReactiveMessageListener reactiveMessageListener) {
         super(subscriptionName, reactiveMessageListener);
-        this.topicExchange = topicExchange;
+        this.topicName = topicName;
     }
 
     protected Mono<Void> setUpBindings(TopologyCreator creator) {
 
-        creator.createTopic(topicExchange);
-        creator.createSubscription(topicExchange, subscriptionName);
-
-        return Mono.just("").then();
+        return creator.createTopic(topicName)
+                .then(creator.createSubscription(topicName, subscriptionName));
 //
 //        final Mono<AMQP.Exchange.DeclareOk> declareExchange = creator.declare(ExchangeSpecification.exchange(directExchange).durable(true).type("direct"));
 //        if (withDLQRetry) {

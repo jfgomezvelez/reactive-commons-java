@@ -8,6 +8,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.reactivecommons.async.commons.communications.Message;
+import org.reactivecommons.async.commons.converters.MessageConverter;
 import reactor.core.publisher.Mono;
 
 @RequiredArgsConstructor
@@ -15,22 +17,19 @@ import reactor.core.publisher.Mono;
 public class ReactiveMessageSender {
 
     private final ServiceBusClientBuilder.ServiceBusSenderClientBuilder serviceBusSenderClientBuilder;
+    private final MessageConverter messageConverter;
 
-    public <T> Mono<Void> publish(T message, String targetName) {
+
+    public <T> Mono<Void> publish(T object, String topicName, String subscriptionName) {
+        Message message = messageConverter.toMessage(object);
+
         ServiceBusSenderClient senderClient = serviceBusSenderClientBuilder
-                .topicName(targetName)
+                .topicName(topicName)
                 .buildClient();
-        try {
-            senderClient.sendMessage(new ServiceBusMessage(objectToJSON(message)));
-            return Mono.just(true).then();
-        } catch (JsonProcessingException e) {
-            return Mono.error(e);
-        }
-    }
 
-    private <T> String objectToJSON(T message) throws JsonProcessingException {
-        ObjectWriter ow = new ObjectMapper().writer();
-        String json = ow.writeValueAsString(message);
-        return json;
+        ServiceBusMessage serviceBusMessage = new ServiceBusMessage(message.getBody());
+        serviceBusMessage.setTo(subscriptionName);
+        senderClient.sendMessage(serviceBusMessage);
+        return Mono.just(true).then();
     }
 }

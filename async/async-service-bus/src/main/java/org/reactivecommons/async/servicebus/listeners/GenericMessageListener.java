@@ -1,13 +1,9 @@
 package org.reactivecommons.async.servicebus.listeners;
 
 import lombok.extern.java.Log;
-import org.reactivecommons.async.servicebus.HandlerResolver;
 import org.reactivecommons.async.servicebus.communucations.ReactiveMessageListener;
 import org.reactivecommons.async.servicebus.communucations.TopologyCreator;
 import reactor.core.publisher.Mono;
-import reactor.rabbitmq.ConsumeOptions;
-
-import java.util.logging.Level;
 
 @Log
 public class GenericMessageListener {

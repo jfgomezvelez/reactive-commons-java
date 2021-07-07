@@ -1,6 +1,7 @@
 package org.reactivecommons.async.servicebus;
 
-import com.rabbitmq.client.Delivery;
+import com.azure.core.amqp.models.AmqpMessageProperties;
+import com.azure.messaging.servicebus.ServiceBusReceivedMessage;
 import lombok.Data;
 import org.reactivecommons.async.commons.communications.Message;
 
@@ -13,22 +14,37 @@ public class ServiceBusMessage implements Message {
     private final Properties properties;
 
     @Data
-    public static class ServiceBusMessageProperties implements Properties{
+    public static class ServiceBusMessageProperties implements Properties {
         private String contentType;
         private String contentEncoding;
         private long contentLength;
         private Map<String, Object> headers = new HashMap<>();
     }
 
-    public static ServiceBusMessage fromDelivery(Delivery delivery){
-        return new ServiceBusMessage(delivery.getBody(), createMessageProps(delivery));
+    public static ServiceBusMessage fromDelivery(ServiceBusReceivedMessage message) {
+        return new ServiceBusMessage(message.getBody().toBytes(), createMessageProps(message));
     }
 
-    private static Message.Properties createMessageProps(Delivery msj) {
+    private static Message.Properties createMessageProps(ServiceBusReceivedMessage message) {
         final ServiceBusMessage.ServiceBusMessageProperties properties = new ServiceBusMessage.ServiceBusMessageProperties();
-        properties.setHeaders(msj.getProperties().getHeaders());
-        properties.setContentType(msj.getProperties().getContentType());
-        properties.setContentEncoding(msj.getProperties().getContentEncoding());
+        properties.setHeaders(getHeaders(message.getRawAmqpMessage().getProperties()));
+        properties.setContentType(message.getContentType());
+        properties.setContentEncoding(message.getRawAmqpMessage().getProperties().getContentEncoding());
         return properties;
+    }
+
+    private static Map<String, Object> getHeaders(AmqpMessageProperties amqpMessageProperties) {
+        Map<String, Object> headers = new HashMap<>();
+        headers.put("messageId", amqpMessageProperties.getMessageId());
+        headers.put("to", amqpMessageProperties.getTo());
+        headers.put("subject", amqpMessageProperties.getSubject());
+        headers.put("absoluteExpiryTime", amqpMessageProperties.getAbsoluteExpiryTime());
+        headers.put("correlationId", amqpMessageProperties.getCorrelationId());
+        headers.put("creationTime", amqpMessageProperties.getCreationTime());
+        headers.put("groupId", amqpMessageProperties.getGroupId());
+        headers.put("groupSequence", amqpMessageProperties.getGroupSequence());
+        headers.put("replyToGroupId", amqpMessageProperties.getReplyToGroupId());
+        headers.put("replyTo", amqpMessageProperties.getReplyTo());
+        return headers;
     }
 }

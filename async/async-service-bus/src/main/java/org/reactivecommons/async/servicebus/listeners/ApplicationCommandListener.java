@@ -1,24 +1,26 @@
 package org.reactivecommons.async.servicebus.listeners;
 
+import org.reactivecommons.async.servicebus.HandlerResolver;
 import org.reactivecommons.async.servicebus.communucations.ReactiveMessageListener;
 import org.reactivecommons.async.servicebus.communucations.TopologyCreator;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 public class ApplicationCommandListener extends GenericMessageListener {
 
-    private final String topicExchange;
+    private final String topicName;
+    private HandlerResolver resolver;
 
-    public ApplicationCommandListener(String topicExchange, String subscriptionName, ReactiveMessageListener reactiveMessageListener){
+    public ApplicationCommandListener(String topicName, String subscriptionName, ReactiveMessageListener reactiveMessageListener, HandlerResolver resolver){
         super(subscriptionName, reactiveMessageListener);
-        this.topicExchange = topicExchange;
+        this.resolver = resolver;
+        this.topicName = topicName;
     }
 
     protected Mono<Void> setUpBindings(TopologyCreator creator) {
 
-        creator.createTopic(topicExchange);
-        creator.createSubscription(topicExchange, subscriptionName);
-
-        return Mono.just("").then();
+        return creator.createTopic(topicName)
+                .then(creator.createSubscription(topicName, subscriptionName));
 
 //        final Mono<AMQP.Exchange.DeclareOk> declareExchange = creator.declare(ExchangeSpecification.exchange(directExchange).durable(true).type("direct"));
 //        if (withDLQRetry) {
