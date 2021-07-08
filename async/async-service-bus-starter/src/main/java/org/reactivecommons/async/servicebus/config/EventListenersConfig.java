@@ -8,7 +8,6 @@ import org.reactivecommons.async.servicebus.HandlerResolver;
 import org.reactivecommons.async.servicebus.communucations.ReactiveMessageListener;
 import org.reactivecommons.async.servicebus.config.props.AsyncProps;
 import org.reactivecommons.async.servicebus.listeners.ApplicationEventListener;
-import org.reactivecommons.async.servicebus.listeners.Listener;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -32,7 +31,7 @@ public class EventListenersConfig {
                                                   CustomReporter errorReporter) {
 
         final ApplicationEventListener applicationEventListener = new ApplicationEventListener(asyncProps.getDomain().getEvents().getExchange(),
-                appName + ".subsEvents", reactiveMessageListener, resolver, messageConverter);
+                 reactiveMessageListener, resolver, messageConverter, appName + ".subsEvents");
 
         applicationEventListener.startListener();
 

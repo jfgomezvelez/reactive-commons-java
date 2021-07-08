@@ -1,37 +1,66 @@
 package org.reactivecommons.async.servicebus.listeners;
 
 import lombok.extern.java.Log;
+import org.reactivecommons.async.api.handlers.registered.RegisteredQueryHandler;
+import org.reactivecommons.async.commons.QueryExecutor;
+import org.reactivecommons.async.commons.communications.Message;
+import org.reactivecommons.async.commons.converters.MessageConverter;
+import org.reactivecommons.async.servicebus.HandlerResolver;
 import org.reactivecommons.async.servicebus.communucations.ReactiveMessageListener;
 import org.reactivecommons.async.servicebus.communucations.TopologyCreator;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.util.function.Function;
 
 @Log
 public class ApplicationQueryListener extends GenericMessageListener {
 
     private final String topicName;
+    private final HandlerResolver resolver;
+    private final MessageConverter converter;
 
-    public ApplicationQueryListener(String topicName,String subscriptionName, ReactiveMessageListener reactiveMessageListener) {
+    public ApplicationQueryListener(String topicName,
+                                    ReactiveMessageListener reactiveMessageListener,
+                                    HandlerResolver resolver,
+                                    MessageConverter converter,
+                                    String subscriptionName) {
         super(subscriptionName, reactiveMessageListener);
         this.topicName = topicName;
+        this.resolver = resolver;
+        this.converter = converter;
     }
 
     protected Mono<Void> setUpBindings(TopologyCreator creator) {
 
         return creator.createTopic(topicName)
-                .then(creator.createSubscription(topicName, subscriptionName));
-//
-//        final Mono<AMQP.Exchange.DeclareOk> declareExchange = creator.declare(ExchangeSpecification.exchange(directExchange).durable(true).type("direct"));
-//        if (withDLQRetry) {
-//            final Mono<AMQP.Exchange.DeclareOk> declareExchangeDLQ = creator.declare(ExchangeSpecification.exchange(directExchange+".DLQ").durable(true).type("direct"));
-//            final Mono<AMQP.Queue.DeclareOk> declareQueue = creator.declareQueue(queueName, directExchange+".DLQ", maxLengthBytes);
-//            final Mono<AMQP.Queue.DeclareOk> declareDLQ = creator.declareDLQ(queueName, directExchange, retryDelay, maxLengthBytes);
-//            final Mono<AMQP.Queue.BindOk> binding = creator.bind(BindingSpecification.binding(directExchange, queueName, queueName));
-//            final Mono<AMQP.Queue.BindOk> bindingDLQ = creator.bind(BindingSpecification.binding(directExchange+".DLQ", queueName, queueName + ".DLQ"));
-//            return declareExchange.then(declareExchangeDLQ).then(declareQueue).then(declareDLQ).then(binding).then(bindingDLQ).then();
-//        } else {
-//            final Mono<AMQP.Queue.DeclareOk> declareQueue = creator.declareQueue(queueName, maxLengthBytes);
-//            final Mono<AMQP.Queue.BindOk> binding = creator.bind(BindingSpecification.binding(directExchange, queueName, queueName));
-//            return declareExchange.then(declareQueue).then(binding).then();
-//        }
+                .thenMany(Flux.fromIterable(resolver.getQueryHandlers())
+                        .flatMap(listener ->
+                                creator.createSubscription(topicName, listener.getPath())
+                                        .then(creator.createRulesubscription(topicName, listener.getPath(), listener.getPath())
+                                                .then(createListener(topicName, listener.getPath())))
+                        )
+                )
+                .then();
+    }
+
+    private Mono<Listener> createListener(String topicName, String subscriptionName) {
+
+        final RegisteredQueryHandler<Object, Object> handler = resolver.getQueryHandler(subscriptionName);
+
+        if (handler == null) {
+            return Mono.error(new RuntimeException("Handler Not registered for Query: " + subscriptionName));
+        }
+        final Class<?> handlerClass = handler.getQueryClass();
+
+        Function<Message, Object> messageConverter = msj -> converter.readAsyncQuery(msj, handlerClass).getQueryData();
+
+        final QueryExecutor<Object, Object> executor = new QueryExecutor<>(handler.getHandler(), messageConverter);
+
+        Listener listener = new QueryListener(topicName, subscriptionName, executor);
+
+        listener.start();
+
+        return Mono.just(listener);
     }
 }

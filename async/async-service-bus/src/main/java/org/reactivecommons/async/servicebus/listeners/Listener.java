@@ -1,29 +1,22 @@
 package org.reactivecommons.async.servicebus.listeners;
 
 import com.azure.messaging.servicebus.*;
-import lombok.AllArgsConstructor;
 import lombok.extern.java.Log;
-import org.reactivecommons.async.commons.EventExecutor;
-import org.reactivecommons.async.commons.communications.Message;
 import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Scheduler;
-import reactor.core.scheduler.Schedulers;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-
-import static java.lang.String.format;
 
 @Log
-@AllArgsConstructor
 public class Listener {
 
     private final String topicName;
     private final String subscriptionName;
-    private final EventExecutor<Object> executor;
 
-    private final Scheduler scheduler = Schedulers.newParallel(getClass().getSimpleName(), 12);
+    public Listener(String topicName, String subscriptionName){
+        this.topicName = topicName;
+        this.subscriptionName = subscriptionName;
+    }
 
     public Mono<Void> start() {
 
@@ -40,26 +33,15 @@ public class Listener {
                 .processError(context -> processError(context, countdownLatch))
                 .buildProcessorClient();
 
-
         System.out.printf("Starting the processor topic %s, subscription %s", this.topicName, this.subscriptionName);
         processorClient.start();
         return Mono.empty();
     }
 
-    private void processMessage(ServiceBusReceivedMessageContext context) {
-        ServiceBusReceivedMessage serviceBusReceivedMessage = context.getMessage();
+    protected void processMessage(ServiceBusReceivedMessageContext context){
 
-        try {
-            System.out.printf("Processing message. Session: %s, Sequence #: %s. Contents: %s%n", serviceBusReceivedMessage.getMessageId(),
-                    serviceBusReceivedMessage.getSequenceNumber(), serviceBusReceivedMessage.getBody());
-            System.out.println(serviceBusReceivedMessage.getBody().toString());
-            final Message message = org.reactivecommons.async.servicebus.ServiceBusMessage.fromDelivery(serviceBusReceivedMessage);
-            executor.execute(message)
-                    .subscribeOn(scheduler);
-        } catch (Exception e) {
-            log.log(Level.SEVERE, format("ATTENTION !! Outer error protection reached for %s, in Async Consumer!! Severe Warning! ", serviceBusReceivedMessage.getRawAmqpMessage().getProperties().getMessageId()), e);
-        }
     }
+
 
     private void processError(ServiceBusErrorContext context, CountDownLatch countdownLatch) {
         System.out.printf("Error when receiving messages from namespace: '%s'. Entity: '%s'%n",

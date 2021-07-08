@@ -52,6 +52,16 @@ public class HandlerResolver {
         return eventListeners.values();
     }
 
+    @SuppressWarnings("unchecked")
+    public Collection<RegisteredCommandHandler<?>> getCommandHandlers() {
+        return commandHandlers.values();
+    }
+
+    @SuppressWarnings("unchecked")
+    public Collection<RegisteredQueryHandler<?, ?>> getQueryHandlers() {
+        return queryHandlers.values();
+    }
+
     public Set<String> getToListenEventNames() {
         Set<String> toListenEventNames = new HashSet<>(eventListeners.size() +
                 dynamicEventsHandlers.size());

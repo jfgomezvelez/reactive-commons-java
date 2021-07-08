@@ -34,7 +34,7 @@ public class CommandListenersConfig {
 //        commandListener.startListener();
 //
 //        return commandListener;
-        ApplicationCommandListener applicationCommandListener = new ApplicationCommandListener(asyncProps.getDirect().getExchange(), appName, listener, resolver);
+        ApplicationCommandListener applicationCommandListener = new ApplicationCommandListener(asyncProps.getDirect().getExchange(), listener, resolver, converter, appName);
 
         applicationCommandListener.startListener();
 

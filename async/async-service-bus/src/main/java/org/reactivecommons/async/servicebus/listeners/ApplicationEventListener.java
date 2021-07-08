@@ -20,10 +20,10 @@ public class ApplicationEventListener extends GenericMessageListener {
     private final MessageConverter messageConverter;
 
     public ApplicationEventListener(String topicName,
-                                    String subscriptionName,
                                     ReactiveMessageListener reactiveMessageListener,
                                     HandlerResolver resolver,
-                                    MessageConverter messageConverter
+                                    MessageConverter messageConverter,
+                                    String subscriptionName
     ) {
         super(subscriptionName, reactiveMessageListener);
         this.resolver = resolver;
@@ -53,7 +53,7 @@ public class ApplicationEventListener extends GenericMessageListener {
 
         final EventExecutor<Object> executor = new EventExecutor<>(handler.getHandler(), converter);
 
-        Listener listener = new Listener(topicName, subscriptionName, executor);
+        Listener listener = new EventListener(topicName, subscriptionName, executor);
 
         listener.start();
 

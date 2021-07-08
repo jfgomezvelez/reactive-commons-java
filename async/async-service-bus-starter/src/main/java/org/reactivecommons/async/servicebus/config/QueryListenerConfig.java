@@ -36,7 +36,7 @@ public class QueryListenerConfig {
 //        listener.startListener();
 
         final ApplicationQueryListener applicationQueryListener = new ApplicationQueryListener(
-                asyncProps.getDirect().getExchange(), appName + ".query", listener);
+                asyncProps.getDirect().getExchange(),  listener, resolver , converter, appName + ".query" );
 
         applicationQueryListener.startListener();
 
