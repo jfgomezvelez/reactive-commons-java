@@ -1,7 +1,6 @@
 package org.reactivecommons.async.servicebus.listeners;
 
 import com.azure.messaging.servicebus.ServiceBusReceivedMessage;
-import com.azure.messaging.servicebus.ServiceBusReceivedMessageContext;
 import lombok.extern.java.Log;
 import org.reactivecommons.api.domain.DomainEvent;
 import org.reactivecommons.async.api.handlers.registered.RegisteredEventListener;
@@ -28,7 +27,6 @@ public class ApplicationEventListener extends GenericMessageListener {
     private final HandlerResolver resolver;
     private final MessageConverter messageConverter;
     private final Matcher keyMatcher;
-
     private final Scheduler scheduler = Schedulers.newParallel(getClass().getSimpleName(), 12);
 
 
@@ -37,9 +35,10 @@ public class ApplicationEventListener extends GenericMessageListener {
                                     HandlerResolver resolver,
                                     MessageConverter messageConverter,
                                     String subscriptionName,
-                                    CustomReporter errorReporter
+                                    CustomReporter errorReporter,
+                                    String connectionString
     ) {
-        super(topicName ,subscriptionName, reactiveMessageListener, errorReporter, "event");
+        super(topicName ,subscriptionName, reactiveMessageListener, errorReporter, "event", connectionString);
         this.resolver = resolver;
         this.messageConverter = messageConverter;
         this.keyMatcher = new KeyMatcher();

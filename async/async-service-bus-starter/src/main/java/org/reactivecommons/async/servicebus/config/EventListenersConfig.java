@@ -7,6 +7,7 @@ import org.reactivecommons.async.commons.ext.CustomReporter;
 import org.reactivecommons.async.servicebus.HandlerResolver;
 import org.reactivecommons.async.servicebus.communucations.ReactiveMessageListener;
 import org.reactivecommons.async.servicebus.config.props.AsyncProps;
+import org.reactivecommons.async.servicebus.config.props.AzureProps;
 import org.reactivecommons.async.servicebus.listeners.ApplicationEventListener;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -24,6 +25,8 @@ public class EventListenersConfig {
 
     private final AsyncProps asyncProps;
 
+    private final AzureProps azureProps;
+
     @Bean
     public ApplicationEventListener eventListener(HandlerResolver resolver,
                                                   MessageConverter messageConverter,
@@ -31,7 +34,7 @@ public class EventListenersConfig {
                                                   CustomReporter errorReporter) {
 
         final ApplicationEventListener applicationEventListener = new ApplicationEventListener(asyncProps.getDomain().getEvents().getExchange(),
-                 reactiveMessageListener, resolver, messageConverter, appName + ".subsEvents", errorReporter);
+                 reactiveMessageListener, resolver, messageConverter, appName + ".subsEvents", errorReporter, azureProps.getConnectionString());
 
         applicationEventListener.startListener();
 

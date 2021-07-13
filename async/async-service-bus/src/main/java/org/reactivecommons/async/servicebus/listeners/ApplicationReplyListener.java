@@ -13,7 +13,6 @@ import java.util.logging.Level;
 
 import static org.reactivecommons.async.commons.Headers.COMPLETION_ONLY_SIGNAL;
 import static org.reactivecommons.async.commons.Headers.CORRELATION_ID;
-import static reactor.rabbitmq.ResourcesSpecification.*;
 
 @Log
 public class ApplicationReplyListener {
@@ -22,12 +21,21 @@ public class ApplicationReplyListener {
     private final TopologyCreator creator;
     private final String subscriptionName;
     private final String topicName;
+    private final String connectionString;
 
-    public ApplicationReplyListener(ReactiveReplyRouter router, ReactiveMessageListener listener, String topicName, String subscriptionName) {
+
+    public ApplicationReplyListener(
+            ReactiveReplyRouter router,
+            ReactiveMessageListener listener,
+            String topicName,
+            String subscriptionName,
+            String connectionString
+    ) {
         this.router = router;
         this.subscriptionName = subscriptionName;
         this.creator = listener.getTopologyCreator();
         this.topicName = topicName;
+        this.connectionString = connectionString;
     }
 
     public void startListening(String routeKey) {
@@ -39,11 +47,9 @@ public class ApplicationReplyListener {
     }
 
     private Mono<Void> createLister() {
-        Listener listener = new Listener(topicName, subscriptionName, this::receiver);
+        Listener listener = new Listener(topicName, subscriptionName, this::receiver, connectionString);
 
-        listener.start();
-
-        return Mono.empty();
+        return listener.start();
     }
 
     private void receiver(ServiceBusReceivedMessageContext serviceBusReceivedMessageContext) {

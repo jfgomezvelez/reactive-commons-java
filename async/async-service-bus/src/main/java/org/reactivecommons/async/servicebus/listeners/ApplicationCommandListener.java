@@ -28,8 +28,9 @@ public class ApplicationCommandListener extends GenericMessageListener {
                                       HandlerResolver resolver,
                                       MessageConverter messageConverter,
                                       String subscriptionName,
-                                      CustomReporter errorReporter) {
-        super(topicName, subscriptionName, reactiveMessageListener, errorReporter, "command");
+                                      CustomReporter errorReporter,
+                                      String connectionString) {
+        super(topicName, subscriptionName, reactiveMessageListener, errorReporter, "command", connectionString);
         this.resolver = resolver;
         this.messageConverter = messageConverter;
     }

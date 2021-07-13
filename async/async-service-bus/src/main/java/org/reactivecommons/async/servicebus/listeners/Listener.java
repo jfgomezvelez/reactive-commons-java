@@ -15,24 +15,25 @@ public class Listener {
     private final String topicName;
     private final String subscriptionName;
     protected final Consumer<ServiceBusReceivedMessageContext> processMessage;
+    private final String connectionString;
 
-    public Listener(String topicName, String subscriptionName, Consumer<ServiceBusReceivedMessageContext> processMessage) {
+    public Listener(String topicName, String subscriptionName, Consumer<ServiceBusReceivedMessageContext> processMessage, String connectionString) {
         this.topicName = topicName;
         this.subscriptionName = subscriptionName;
         this.processMessage = processMessage;
+        this.connectionString = connectionString;
     }
 
-    public Listener(String topicName, String subscriptionName) {
+    public Listener(String topicName, String subscriptionName, String connectionString) {
         this.topicName = topicName;
         this.subscriptionName = subscriptionName;
         this.processMessage = null;
+        this.connectionString = connectionString;
     }
 
     public Mono<Void> start() {
 
         CountDownLatch countdownLatch = new CountDownLatch(1);
-
-        String connectionString = "Endpoint=sb://reactivecommons-servicebus-sofka.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=dqaZiNhGjICV4ZFflQIrWwQ5eCftCMGIwSzqIl+Ib/A=";
 
         ServiceBusProcessorClient processorClient = new ServiceBusClientBuilder()
                 .connectionString(connectionString)
@@ -49,7 +50,6 @@ public class Listener {
     }
 
     public Flux<ServiceBusReceivedMessage> startAsync() {
-        String connectionString = "Endpoint=sb://reactivecommons-servicebus-sofka.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=dqaZiNhGjICV4ZFflQIrWwQ5eCftCMGIwSzqIl+Ib/A=";
 
         ServiceBusReceiverAsyncClient receiver = new ServiceBusClientBuilder()
                 .connectionString(connectionString)

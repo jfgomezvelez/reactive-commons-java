@@ -7,6 +7,7 @@ import org.reactivecommons.async.servicebus.HandlerResolver;
 import org.reactivecommons.async.servicebus.communucations.ReactiveMessageListener;
 import org.reactivecommons.async.servicebus.communucations.ReactiveMessageSender;
 import org.reactivecommons.async.servicebus.config.props.AsyncProps;
+import org.reactivecommons.async.servicebus.config.props.AzureProps;
 import org.reactivecommons.async.servicebus.listeners.ApplicationQueryListener;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -24,6 +25,8 @@ public class QueryListenerConfig {
 
     private final AsyncProps asyncProps;
 
+    private final AzureProps azureProps;
+
     @Bean
     public ApplicationQueryListener queryListener(
             ReactiveMessageSender reactiveMessageSender,
@@ -33,7 +36,15 @@ public class QueryListenerConfig {
             CustomReporter errorReporter) {
 
         final ApplicationQueryListener applicationQueryListener = new ApplicationQueryListener(
-                reactiveMessageSender, listener, resolver, converter, asyncProps.getDirect().getExchange(), asyncProps.getGlobal().getExchange(), appName + ".query", errorReporter);
+                reactiveMessageSender,
+                listener,
+                resolver,
+                converter,
+                asyncProps.getDirect().getExchange(),
+                asyncProps.getGlobal().getExchange(),
+                appName + ".query",
+                errorReporter,
+                azureProps.getConnectionString());
 
         applicationQueryListener.startListener();
 

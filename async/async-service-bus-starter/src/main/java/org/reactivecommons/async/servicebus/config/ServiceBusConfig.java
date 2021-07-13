@@ -25,6 +25,7 @@ import org.reactivecommons.async.servicebus.communucations.ReactiveMessageListen
 import org.reactivecommons.async.servicebus.communucations.ReactiveMessageSender;
 import org.reactivecommons.async.servicebus.communucations.TopologyCreator;
 import org.reactivecommons.async.servicebus.config.props.AsyncProps;
+import org.reactivecommons.async.servicebus.config.props.AzureProps;
 import org.reactivecommons.async.servicebus.config.props.BrokerConfigProps;
 import org.reactivecommons.async.servicebus.converters.jso.JacksonMessageConverter;
 import org.springframework.beans.factory.annotation.Value;
@@ -47,7 +48,8 @@ import java.util.concurrent.ConcurrentMap;
 @RequiredArgsConstructor
 @EnableConfigurationProperties({
         ServiceBusProperties.class,
-        AsyncProps.class
+        AsyncProps.class,
+        AzureProps.class
 })
 @Import(BrokerConfigProps.class)
 public class ServiceBusConfig {
@@ -62,12 +64,12 @@ public class ServiceBusConfig {
     }
 
     @Bean
-    public ServiceBusClientBuilder.ServiceBusSenderClientBuilder getServiceBusSenderClientBuilder() {
+    public ServiceBusClientBuilder.ServiceBusSenderClientBuilder getServiceBusSenderClientBuilder(AzureProps azureProps) {
         log.info("Creando objeto de ServiceBusClientBuilder...");
-        String connectionString = "Endpoint=sb://reactivecommons-servicebus-sofka.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=dqaZiNhGjICV4ZFflQIrWwQ5eCftCMGIwSzqIl+Ib/A=";
+        //String connectionString = "Endpoint=sb://reactivecommons-servicebus-sofka.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=dqaZiNhGjICV4ZFflQIrWwQ5eCftCMGIwSzqIl+Ib/A=";
 
         return new ServiceBusClientBuilder()
-                .connectionString(connectionString)
+                .connectionString(azureProps.getConnectionString())
                 .sender();
     }
 
@@ -78,10 +80,10 @@ public class ServiceBusConfig {
     }
 
     @Bean
-    public ManagementClient getManagementClient() {
+    public ManagementClient getManagementClient(AzureProps azureProps) {
         log.info("Creando objeto de ManagementClient...");
-        String connectionString = "Endpoint=sb://reactivecommons-servicebus-sofka.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=dqaZiNhGjICV4ZFflQIrWwQ5eCftCMGIwSzqIl+Ib/A=";
-        ConnectionStringBuilder connectionStringBuilder = new ConnectionStringBuilder(connectionString);
+        //String connectionString = "Endpoint=sb://reactivecommons-servicebus-sofka.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=dqaZiNhGjICV4ZFflQIrWwQ5eCftCMGIwSzqIl+Ib/A=";
+        ConnectionStringBuilder connectionStringBuilder = new ConnectionStringBuilder(azureProps.getConnectionString());
         return new ManagementClient(connectionStringBuilder);
     }
 
@@ -134,14 +136,6 @@ public class ServiceBusConfig {
                 .flatMap(r -> r.getEventNotificationListener().stream())
                 .collect(ConcurrentHashMap::new, (map, handler) -> map.put(handler.getPath(), handler),
                         ConcurrentHashMap::putAll);
-
-        log.info("==================================================================");
-        log.info("queryHandlers " + queryHandlers.size());
-        log.info("eventListeners " + eventListeners.size());
-        log.info("eventNotificationListener " + eventNotificationListener.size());
-        log.info("dynamicEventHandlers " + dynamicEventHandlers.size());
-        log.info("commandHandlers " + commandHandlers.size());
-        log.info("==================================================================");
 
         return new HandlerResolver(queryHandlers, eventListeners, eventNotificationListener,
                 dynamicEventHandlers, commandHandlers) {

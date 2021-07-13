@@ -1,7 +1,6 @@
 package org.reactivecommons.async.servicebus.listeners;
 
 import com.azure.messaging.servicebus.ServiceBusReceivedMessage;
-import com.azure.messaging.servicebus.ServiceBusReceivedMessageContext;
 import lombok.extern.java.Log;
 import org.reactivecommons.async.commons.communications.Message;
 import org.reactivecommons.async.commons.ext.CustomReporter;
@@ -13,7 +12,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
-import reactor.rabbitmq.AcknowledgableDelivery;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -36,19 +34,21 @@ public abstract class GenericMessageListener {
     private final CustomReporter customReporter;
     private final String objectType;
     private volatile Flux<ServiceBusReceivedMessage> messageFlux;
-
+    private final String connectionString;
 
     public GenericMessageListener(
             String topicName,
             String subscriptionName,
             ReactiveMessageListener reactiveMessageListener,
             CustomReporter customReporter,
-            String objectType) {
+            String objectType,
+            String connectionString) {
         this.topicName = topicName;
         this.subscriptionName = subscriptionName;
         this.reactiveMessageListener = reactiveMessageListener;
         this.customReporter = customReporter;
         this.objectType = objectType;
+        this.connectionString = connectionString;
     }
 
     public void startListener() {
@@ -58,15 +58,7 @@ public abstract class GenericMessageListener {
 //        } else {
 //            log.log(Level.INFO, "ATTENTION! Using infinite fast retries as Retry Strategy");
 //        }
-//
-//        ConsumeOptions consumeOptions = new ConsumeOptions();
-//        consumeOptions.qos(messageListener.getPrefetchCount());
 
-//        this.messageFlux = setUpBindings(messageListener.getTopologyCreator()).thenMany(
-//                receiver.consumeManualAck(queueName, consumeOptions)
-//                        .transform(this::consumeFaultTolerant));
-//
-//        onTerminate();
         this.messageFlux = setUpBindings(reactiveMessageListener.getTopologyCreator())
                 .thenMany(createListenerAsync(topicName, subscriptionName))
                 .transform(this::consumeFaultTolerant);
@@ -92,37 +84,11 @@ public abstract class GenericMessageListener {
         return Mono.empty();
     }
 
-    private Mono<Void> createListener(String topicName, String subscriptionName) {
-
-        Listener listener = new Listener(topicName, subscriptionName);
-
-        return listener.start();
-    }
-
     private Flux<ServiceBusReceivedMessage> createListenerAsync(String topicName, String subscriptionName) {
 
-        Listener listener = new Listener(topicName, subscriptionName);
+        Listener listener = new Listener(topicName, subscriptionName, connectionString);
 
         return listener.startAsync();
-    }
-
-    private void receiver(ServiceBusReceivedMessage context) {
-
-        final String executorPath = getExecutorPath(context);
-
-        final Function<Message, Mono<Object>> handler = getExecutor(executorPath);
-
-        final Message message = ServiceBusMessage.fromDelivery(context);
-
-        System.out.printf("Processing message. Session: %s, Sequence #: %s. Contents: %s%n", context.getMessageId(),
-                context.getSequenceNumber(), context.getBody());
-
-        final Instant initTime = Instant.now();
-
-        defer(() -> handler.apply(message))
-                .transform(enrichPostProcess(message))
-                .doOnSuccess(o -> logExecution(executorPath, initTime, true))
-                .subscribeOn(scheduler);
     }
 
     private Mono<ServiceBusReceivedMessage> handle(ServiceBusReceivedMessage context, Instant initTime) {

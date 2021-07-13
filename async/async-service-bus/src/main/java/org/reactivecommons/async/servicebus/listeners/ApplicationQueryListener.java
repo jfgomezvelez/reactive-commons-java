@@ -37,8 +37,9 @@ public class ApplicationQueryListener extends GenericMessageListener {
             String directTopicName,
             String replyTopicName,
             String subscriptionName,
-            CustomReporter customReporter) {
-        super(directTopicName, subscriptionName, reactiveMessageListener, customReporter, "query");
+            CustomReporter customReporter,
+            String connectionString) {
+        super(directTopicName, subscriptionName, reactiveMessageListener, customReporter, "query", connectionString);
         this.resolver = resolver;
         this.converter = converter;
         this.reactiveMessageSender = reactiveMessageSender;
