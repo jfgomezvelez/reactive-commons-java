@@ -27,14 +27,7 @@ public class CommandListenersConfig {
                                                                  HandlerResolver resolver,
                                                                  MessageConverter converter,
                                                                  CustomReporter errorReporter) {
-//        ApplicationCommandListener commandListener = new ApplicationCommandListener(listener, appName, resolver,
-//                asyncProps.getDirect().getExchange(), converter, asyncProps.getWithDLQRetry(), asyncProps.getMaxRetries(),
-//                asyncProps.getRetryDelay(), asyncProps.getDirect().getMaxLengthBytes(), discardNotifier, errorReporter);
-//
-//        commandListener.startListener();
-//
-//        return commandListener;
-        ApplicationCommandListener applicationCommandListener = new ApplicationCommandListener(asyncProps.getDirect().getExchange(), listener, resolver, converter, appName);
+        ApplicationCommandListener applicationCommandListener = new ApplicationCommandListener(asyncProps.getDirect().getExchange(), listener, resolver, converter, appName, errorReporter);
 
         applicationCommandListener.startListener();
 

@@ -1,26 +1,23 @@
 package org.reactivecommons.async.servicebus.listeners;
 
 import com.azure.messaging.servicebus.ServiceBusReceivedMessage;
-import com.azure.messaging.servicebus.ServiceBusReceivedMessageContext;
 import lombok.extern.java.Log;
 import org.reactivecommons.async.api.handlers.registered.RegisteredQueryHandler;
 import org.reactivecommons.async.commons.QueryExecutor;
 import org.reactivecommons.async.commons.communications.Message;
 import org.reactivecommons.async.commons.converters.MessageConverter;
+import org.reactivecommons.async.commons.ext.CustomReporter;
 import org.reactivecommons.async.servicebus.HandlerResolver;
 import org.reactivecommons.async.servicebus.communucations.ReactiveMessageListener;
 import org.reactivecommons.async.servicebus.communucations.ReactiveMessageSender;
 import org.reactivecommons.async.servicebus.communucations.TopologyCreator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Scheduler;
-import reactor.core.scheduler.Schedulers;
 
 import java.util.HashMap;
 import java.util.function.Function;
-import java.util.logging.Level;
 
-import static java.lang.String.format;
+import static java.util.Optional.ofNullable;
 import static org.reactivecommons.async.commons.Headers.CORRELATION_ID;
 import static org.reactivecommons.async.commons.Headers.REPLY_ID;
 
@@ -32,9 +29,6 @@ public class ApplicationQueryListener extends GenericMessageListener {
     private final ReactiveMessageSender reactiveMessageSender;
     private final String replyTopicName;
 
-    private final Scheduler scheduler = Schedulers.newParallel(getClass().getSimpleName(), 12);
-
-
     public ApplicationQueryListener(
             ReactiveMessageSender reactiveMessageSender,
             ReactiveMessageListener reactiveMessageListener,
@@ -42,8 +36,9 @@ public class ApplicationQueryListener extends GenericMessageListener {
             MessageConverter converter,
             String directTopicName,
             String replyTopicName,
-            String subscriptionName) {
-        super(directTopicName, subscriptionName, reactiveMessageListener);
+            String subscriptionName,
+            CustomReporter customReporter) {
+        super(directTopicName, subscriptionName, reactiveMessageListener, customReporter, "query");
         this.resolver = resolver;
         this.converter = converter;
         this.reactiveMessageSender = reactiveMessageSender;
@@ -62,37 +57,44 @@ public class ApplicationQueryListener extends GenericMessageListener {
                 .then();
     }
 
-    protected void processMessage(ServiceBusReceivedMessageContext context) {
+    protected Function<Mono<Object>, Mono<Object>> enrichPostProcess(Message message) {
 
-        ServiceBusReceivedMessage serviceBusReceivedMessage = context.getMessage();
-
-        try {
-            final Message message = org.reactivecommons.async.servicebus.ServiceBusMessage.fromDelivery(serviceBusReceivedMessage);
-
-            System.out.printf("Processing message. Session: %s, Sequence #: %s. Contents: %s%n", serviceBusReceivedMessage.getMessageId(),
-                    serviceBusReceivedMessage.getSequenceNumber(), serviceBusReceivedMessage.getBody());
-
-            final RegisteredQueryHandler<Object, Object> handler = resolver.getQueryHandler(message.getProperties().getHeaders().get("to").toString());
-
-            if (handler == null) {
-                throw new RuntimeException("Handler Not registered for Query: " + subscriptionName);
+        return m -> m.materialize().flatMap(signal -> {
+            if (signal.isOnError()) {
+                return Mono.error(ofNullable(signal.getThrowable()).orElseGet(RuntimeException::new));
             }
-            final Class<?> handlerClass = handler.getQueryClass();
+            if (signal.isOnComplete()) {
+                return Mono.empty();
+            }
 
-            Function<Message, Object> messageConverter = msj -> converter.readAsyncQuery(msj, handlerClass).getQueryData();
-
-            final QueryExecutor<Object, Object> executor = new QueryExecutor<>(handler.getHandler(), messageConverter);
-
-            executor.execute(message)
-                    .materialize()
-                    .flatMap(result -> enrichPostProcess(message, result.get()))
-                    .subscribeOn(scheduler);
-        } catch (Exception e) {
-            log.log(Level.SEVERE, format("ATTENTION !! Outer error protection reached for %s, in Async Consumer!! Severe Warning! ", serviceBusReceivedMessage.getRawAmqpMessage().getProperties().getMessageId()), e);
-        }
+            return reply(message, signal.get());
+        });
     }
 
-    private Mono<Void> enrichPostProcess(Message msg, Object object) {
+    @Override
+    protected String getExecutorPath(ServiceBusReceivedMessage context) {
+        return context.getTo();
+    }
+
+    @Override
+    protected Function<Message, Mono<Object>> rawMessageHandler(String executorPath) {
+
+        final RegisteredQueryHandler<Object, Object> handler = resolver.getQueryHandler(executorPath);
+
+        if (handler == null) {
+            return message -> Mono.error(new RuntimeException("Handler Not registered for Query: " + executorPath));
+        }
+
+        final Class<?> handlerClass = handler.getQueryClass();
+
+        Function<Message, Object> messageConverter = msj -> converter.readAsyncQuery(msj, handlerClass).getQueryData();
+
+        final QueryExecutor<Object, Object> executor = new QueryExecutor<>(handler.getHandler(), messageConverter);
+
+        return executor::execute;
+    }
+
+    private Mono<Void> reply(Message msg, Object object) {
 
         final String replyID = msg.getProperties().getHeaders().get(REPLY_ID).toString();
 
@@ -102,6 +104,6 @@ public class ApplicationQueryListener extends GenericMessageListener {
 
         headers.put(CORRELATION_ID, correlationID);
 
-        return reactiveMessageSender.publish(object, replyTopicName, replyID);
+        return reactiveMessageSender.publish(object, replyTopicName, replyID, headers);
     }
 }

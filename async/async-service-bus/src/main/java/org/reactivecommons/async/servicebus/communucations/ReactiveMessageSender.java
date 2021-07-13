@@ -40,6 +40,7 @@ public class ReactiveMessageSender {
     }
 
     public <T> Mono<Void> publish(T object, String topicName, String ruleName,  Map<String, Object> headers) {
+
         Message message = messageConverter.toMessage(object);
 
         ServiceBusSenderAsyncClient senderClient = serviceBusSenderClientBuilder

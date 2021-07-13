@@ -31,7 +31,7 @@ public class EventListenersConfig {
                                                   CustomReporter errorReporter) {
 
         final ApplicationEventListener applicationEventListener = new ApplicationEventListener(asyncProps.getDomain().getEvents().getExchange(),
-                 reactiveMessageListener, resolver, messageConverter, appName + ".subsEvents");
+                 reactiveMessageListener, resolver, messageConverter, appName + ".subsEvents", errorReporter);
 
         applicationEventListener.startListener();
 

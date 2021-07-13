@@ -2,6 +2,7 @@ package org.reactivecommons.async.servicebus.listeners;
 
 import com.azure.messaging.servicebus.*;
 import lombok.extern.java.Log;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.concurrent.CountDownLatch;
@@ -15,10 +16,16 @@ public class Listener {
     private final String subscriptionName;
     protected final Consumer<ServiceBusReceivedMessageContext> processMessage;
 
-    public Listener(String topicName, String subscriptionName, Consumer<ServiceBusReceivedMessageContext> processMessage){
+    public Listener(String topicName, String subscriptionName, Consumer<ServiceBusReceivedMessageContext> processMessage) {
         this.topicName = topicName;
         this.subscriptionName = subscriptionName;
         this.processMessage = processMessage;
+    }
+
+    public Listener(String topicName, String subscriptionName) {
+        this.topicName = topicName;
+        this.subscriptionName = subscriptionName;
+        this.processMessage = null;
     }
 
     public Mono<Void> start() {
@@ -39,6 +46,19 @@ public class Listener {
         System.out.printf("Starting the processor topic %s, subscription %s", this.topicName, this.subscriptionName);
         processorClient.start();
         return Mono.empty();
+    }
+
+    public Flux<ServiceBusReceivedMessage> startAsync() {
+        String connectionString = "Endpoint=sb://reactivecommons-servicebus-sofka.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=dqaZiNhGjICV4ZFflQIrWwQ5eCftCMGIwSzqIl+Ib/A=";
+
+        ServiceBusReceiverAsyncClient receiver = new ServiceBusClientBuilder()
+                .connectionString(connectionString)
+                .receiver()
+                .topicName(topicName)
+                .subscriptionName(subscriptionName)
+                .buildAsyncClient();
+
+        return receiver.receiveMessages();
     }
 
     private void processError(ServiceBusErrorContext context, CountDownLatch countdownLatch) {

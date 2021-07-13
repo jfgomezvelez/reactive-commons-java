@@ -8,6 +8,9 @@ import org.reactivecommons.async.api.handlers.registered.RegisteredEventListener
 import org.reactivecommons.async.commons.EventExecutor;
 import org.reactivecommons.async.commons.communications.Message;
 import org.reactivecommons.async.commons.converters.MessageConverter;
+import org.reactivecommons.async.commons.ext.CustomReporter;
+import org.reactivecommons.async.commons.utils.matcher.KeyMatcher;
+import org.reactivecommons.async.commons.utils.matcher.Matcher;
 import org.reactivecommons.async.servicebus.HandlerResolver;
 import org.reactivecommons.async.servicebus.communucations.ReactiveMessageListener;
 import org.reactivecommons.async.servicebus.communucations.TopologyCreator;
@@ -17,15 +20,14 @@ import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
 import java.util.function.Function;
-import java.util.logging.Level;
 
-import static java.lang.String.format;
 
 @Log
 public class ApplicationEventListener extends GenericMessageListener {
 
     private final HandlerResolver resolver;
     private final MessageConverter messageConverter;
+    private final Matcher keyMatcher;
 
     private final Scheduler scheduler = Schedulers.newParallel(getClass().getSimpleName(), 12);
 
@@ -34,11 +36,13 @@ public class ApplicationEventListener extends GenericMessageListener {
                                     ReactiveMessageListener reactiveMessageListener,
                                     HandlerResolver resolver,
                                     MessageConverter messageConverter,
-                                    String subscriptionName
+                                    String subscriptionName,
+                                    CustomReporter errorReporter
     ) {
-        super(topicName ,subscriptionName, reactiveMessageListener);
+        super(topicName ,subscriptionName, reactiveMessageListener, errorReporter, "event");
         this.resolver = resolver;
         this.messageConverter = messageConverter;
+        this.keyMatcher = new KeyMatcher();
     }
 
     protected Mono<Void> setUpBindings(TopologyCreator creator) {
@@ -52,32 +56,27 @@ public class ApplicationEventListener extends GenericMessageListener {
                 .then();
     }
 
-    protected void processMessage(ServiceBusReceivedMessageContext context) {
+    @Override
+    protected String getExecutorPath(ServiceBusReceivedMessage context) {
+        return context.getTo();
+    }
 
-        ServiceBusReceivedMessage serviceBusReceivedMessage = context.getMessage();
+    @Override
+    protected Function<Message, Mono<Object>> rawMessageHandler(String executorPath) {
 
-        try {
-            System.out.printf("Processing message. Session: %s, Sequence #: %s. Contents: %s%n", serviceBusReceivedMessage.getMessageId(),
-                    serviceBusReceivedMessage.getSequenceNumber(), serviceBusReceivedMessage.getBody());
+        final String matchedKey = keyMatcher.match(resolver.getToListenEventNames(), executorPath);
 
+        final RegisteredEventListener<Object> handler = getEventListener(matchedKey);
 
-            final Message message = org.reactivecommons.async.servicebus.ServiceBusMessage.fromDelivery(serviceBusReceivedMessage);
+        final Class<Object> eventClass = handler.getInputClass();
 
-            RegisteredEventListener<Object> handler = getEventListener(message.getProperties().getHeaders().get("to").toString());
+        Function<Message, DomainEvent<Object>> converter = msj -> messageConverter.readDomainEvent(msj, eventClass);
 
-            final Class<Object> eventClass = handler.getInputClass();
+        final EventExecutor<Object> executor = new EventExecutor<>(handler.getHandler(), converter);
 
-            Function<Message, DomainEvent<Object>> converter = msj -> messageConverter.readDomainEvent(msj, eventClass);
-
-            final EventExecutor<Object> executor = new EventExecutor<>(handler.getHandler(), converter);
-
-            executor.execute(message)
-                    .subscribeOn(scheduler);
-
-        } catch (Exception e) {
-            log.log(Level.SEVERE, format("ATTENTION !! Outer error protection reached for %s, in Async Consumer!! Severe Warning! ", serviceBusReceivedMessage.getRawAmqpMessage().getProperties().getMessageId()), e);
-        }
-
+        return msj -> executor
+                .execute(msj)
+                .cast(Object.class);
     }
 
     private RegisteredEventListener<Object> getEventListener(String matchedKey) {

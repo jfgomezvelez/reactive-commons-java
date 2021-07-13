@@ -52,7 +52,9 @@ public class ApplicationReplyListener {
             Message message = ServiceBusMessage.fromDelivery(serviceBusReceivedMessageContext.getMessage());
 
             final String correlationID = message.getProperties().getHeaders().get(CORRELATION_ID).toString();
+
             final boolean isEmpty = message.getProperties().getHeaders().get(COMPLETION_ONLY_SIGNAL) != null;
+
             if (isEmpty) {
                 router.routeEmpty(correlationID);
             } else {

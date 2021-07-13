@@ -31,15 +31,9 @@ public class QueryListenerConfig {
             HandlerResolver resolver,
             MessageConverter converter,
             CustomReporter errorReporter) {
-//        final ApplicationQueryListener listener = new ApplicationQueryListener(rlistener,
-//                appName + ".query", resolver, sender, asyncProps.getDirect().getExchange(), converter,
-//                asyncProps.getGlobal().getExchange(), asyncProps.getWithDLQRetry(), asyncProps.getMaxRetries(),
-//                asyncProps.getRetryDelay(),asyncProps.getGlobal().getMaxLengthBytes(),  discardNotifier, errorReporter);
-//
-//        listener.startListener();
 
         final ApplicationQueryListener applicationQueryListener = new ApplicationQueryListener(
-                reactiveMessageSender, listener, resolver, converter, asyncProps.getDirect().getExchange(), asyncProps.getGlobal().getExchange(), appName + ".query");
+                reactiveMessageSender, listener, resolver, converter, asyncProps.getDirect().getExchange(), asyncProps.getGlobal().getExchange(), appName + ".query", errorReporter);
 
         applicationQueryListener.startListener();
 
