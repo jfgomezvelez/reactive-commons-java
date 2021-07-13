@@ -2,6 +2,8 @@ package org.reactivecommons.async.servicebus.communucations;
 
 
 import com.microsoft.azure.servicebus.management.ManagementClient;
+import com.microsoft.azure.servicebus.management.SubscriptionDescription;
+import com.microsoft.azure.servicebus.management.TopicDescription;
 import com.microsoft.azure.servicebus.primitives.ServiceBusException;
 import com.microsoft.azure.servicebus.rules.CorrelationFilter;
 import com.microsoft.azure.servicebus.rules.RuleDescription;
@@ -15,14 +17,14 @@ public class TopologyCreator {
 
     private final ManagementClient managementClient;
 
-    public Mono<Void> createTopic(String name) {
+    public Mono<Void> createTopic(String topicName) {
 
         log.info("Creando topic de service bus....");
 
         try {
-            if(!managementClient.topicExists(name))
+            if(!managementClient.topicExists(topicName))
             {
-                managementClient.createTopic(name);
+                managementClient.createTopic(topicName);
             }
         } catch (ServiceBusException e) {
             log.info("Error creando topic ServiceBusException".concat(e.getMessage()));

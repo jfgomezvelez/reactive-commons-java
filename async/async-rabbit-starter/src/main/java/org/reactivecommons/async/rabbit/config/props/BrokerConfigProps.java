@@ -58,4 +58,9 @@ public class BrokerConfigProps implements IBrokerConfigProps {
     public String getDirectMessagesExchangeName() {
         return asyncProps.getDirect().getExchange();
     }
+
+    @Override
+    public String getGlobalReplyExchangeName() {
+        return asyncProps.getGlobal().getExchange();
+    }
 }

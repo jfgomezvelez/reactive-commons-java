@@ -5,6 +5,7 @@ import org.reactivecommons.async.commons.converters.MessageConverter;
 import org.reactivecommons.async.commons.ext.CustomReporter;
 import org.reactivecommons.async.servicebus.HandlerResolver;
 import org.reactivecommons.async.servicebus.communucations.ReactiveMessageListener;
+import org.reactivecommons.async.servicebus.communucations.ReactiveMessageSender;
 import org.reactivecommons.async.servicebus.config.props.AsyncProps;
 import org.reactivecommons.async.servicebus.listeners.ApplicationQueryListener;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,10 +25,12 @@ public class QueryListenerConfig {
     private final AsyncProps asyncProps;
 
     @Bean
-    public ApplicationQueryListener queryListener(ReactiveMessageListener listener,
-                                                  HandlerResolver resolver,
-                                                  MessageConverter converter,
-                                                  CustomReporter errorReporter) {
+    public ApplicationQueryListener queryListener(
+            ReactiveMessageSender reactiveMessageSender,
+            ReactiveMessageListener listener,
+            HandlerResolver resolver,
+            MessageConverter converter,
+            CustomReporter errorReporter) {
 //        final ApplicationQueryListener listener = new ApplicationQueryListener(rlistener,
 //                appName + ".query", resolver, sender, asyncProps.getDirect().getExchange(), converter,
 //                asyncProps.getGlobal().getExchange(), asyncProps.getWithDLQRetry(), asyncProps.getMaxRetries(),
@@ -36,7 +39,7 @@ public class QueryListenerConfig {
 //        listener.startListener();
 
         final ApplicationQueryListener applicationQueryListener = new ApplicationQueryListener(
-                asyncProps.getDirect().getExchange(),  listener, resolver , converter, appName + ".query" );
+                reactiveMessageSender, listener, resolver, converter, asyncProps.getDirect().getExchange(), asyncProps.getGlobal().getExchange(), appName + ".query");
 
         applicationQueryListener.startListener();
 

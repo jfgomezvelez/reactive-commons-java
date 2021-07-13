@@ -6,16 +6,19 @@ import reactor.core.publisher.Mono;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 @Log
 public class Listener {
 
     private final String topicName;
     private final String subscriptionName;
+    protected final Consumer<ServiceBusReceivedMessageContext> processMessage;
 
-    public Listener(String topicName, String subscriptionName){
+    public Listener(String topicName, String subscriptionName, Consumer<ServiceBusReceivedMessageContext> processMessage){
         this.topicName = topicName;
         this.subscriptionName = subscriptionName;
+        this.processMessage = processMessage;
     }
 
     public Mono<Void> start() {
@@ -29,7 +32,7 @@ public class Listener {
                 .processor()
                 .topicName(topicName)
                 .subscriptionName(subscriptionName)
-                .processMessage(this::processMessage)
+                .processMessage(processMessage)
                 .processError(context -> processError(context, countdownLatch))
                 .buildProcessorClient();
 
@@ -37,11 +40,6 @@ public class Listener {
         processorClient.start();
         return Mono.empty();
     }
-
-    protected void processMessage(ServiceBusReceivedMessageContext context){
-
-    }
-
 
     private void processError(ServiceBusErrorContext context, CountDownLatch countdownLatch) {
         System.out.printf("Error when receiving messages from namespace: '%s'. Entity: '%s'%n",

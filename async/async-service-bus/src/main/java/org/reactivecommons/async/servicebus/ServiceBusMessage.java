@@ -35,16 +35,16 @@ public class ServiceBusMessage implements Message {
 
     private static Map<String, Object> getHeaders(AmqpMessageProperties amqpMessageProperties) {
         Map<String, Object> headers = new HashMap<>();
-        headers.put("messageId", amqpMessageProperties.getMessageId());
-        headers.put("to", amqpMessageProperties.getTo());
+        headers.put("messageId", (amqpMessageProperties.getMessageId() == null) ? null : amqpMessageProperties.getMessageId().toString());
+        headers.put("to", (amqpMessageProperties.getTo() == null) ? null: amqpMessageProperties.getTo().toString());
         headers.put("subject", amqpMessageProperties.getSubject());
         headers.put("absoluteExpiryTime", amqpMessageProperties.getAbsoluteExpiryTime());
-        headers.put("correlationId", amqpMessageProperties.getCorrelationId());
+        headers.put("correlationId", (amqpMessageProperties.getCorrelationId() == null) ? null : amqpMessageProperties.getCorrelationId().toString());
         headers.put("creationTime", amqpMessageProperties.getCreationTime());
         headers.put("groupId", amqpMessageProperties.getGroupId());
         headers.put("groupSequence", amqpMessageProperties.getGroupSequence());
         headers.put("replyToGroupId", amqpMessageProperties.getReplyToGroupId());
-        headers.put("replyTo", amqpMessageProperties.getReplyTo());
+        headers.put("replyTo", (amqpMessageProperties.getReplyTo() == null) ? null : amqpMessageProperties.getReplyTo().toString());
         return headers;
     }
 }

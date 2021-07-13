@@ -15,5 +15,7 @@ public interface IBrokerConfigProps {
 
     String getDirectMessagesExchangeName();
 
+    String getGlobalReplyExchangeName();
+
     java.util.concurrent.atomic.AtomicReference<String> getReplyQueueName();
 }

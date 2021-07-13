@@ -1,5 +1,8 @@
 package org.reactivecommons.async.servicebus.listeners;
 
+import com.azure.messaging.servicebus.ServiceBusReceivedMessage;
+import com.azure.messaging.servicebus.ServiceBusReceivedMessageContext;
+import lombok.extern.java.Log;
 import org.reactivecommons.api.domain.DomainEvent;
 import org.reactivecommons.async.api.handlers.registered.RegisteredEventListener;
 import org.reactivecommons.async.commons.EventExecutor;
@@ -10,14 +13,22 @@ import org.reactivecommons.async.servicebus.communucations.ReactiveMessageListen
 import org.reactivecommons.async.servicebus.communucations.TopologyCreator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
 
 import java.util.function.Function;
+import java.util.logging.Level;
 
+import static java.lang.String.format;
+
+@Log
 public class ApplicationEventListener extends GenericMessageListener {
 
-    private final String topicName;
     private final HandlerResolver resolver;
     private final MessageConverter messageConverter;
+
+    private final Scheduler scheduler = Schedulers.newParallel(getClass().getSimpleName(), 12);
+
 
     public ApplicationEventListener(String topicName,
                                     ReactiveMessageListener reactiveMessageListener,
@@ -25,39 +36,48 @@ public class ApplicationEventListener extends GenericMessageListener {
                                     MessageConverter messageConverter,
                                     String subscriptionName
     ) {
-        super(subscriptionName, reactiveMessageListener);
+        super(topicName ,subscriptionName, reactiveMessageListener);
         this.resolver = resolver;
-        this.topicName = topicName;
         this.messageConverter = messageConverter;
     }
 
     protected Mono<Void> setUpBindings(TopologyCreator creator) {
         return creator.createTopic(topicName)
+                .then(creator.createSubscription(topicName, subscriptionName))
                 .thenMany(Flux.fromIterable(resolver.getEventListeners())
                         .flatMap(listener ->
-                                creator.createSubscription(topicName, listener.getPath())
-                                        .then(creator.createRulesubscription(topicName, listener.getPath(), listener.getPath())
-                                                .then(createListener(topicName, listener.getPath())))
+                                creator.createRulesubscription(topicName, subscriptionName, listener.getPath())
                         )
                 )
                 .then();
     }
 
-    private Mono<Listener> createListener(String topicName, String subscriptionName) {
+    protected void processMessage(ServiceBusReceivedMessageContext context) {
 
-        RegisteredEventListener<Object> handler = getEventListener(subscriptionName);
+        ServiceBusReceivedMessage serviceBusReceivedMessage = context.getMessage();
 
-        final Class<Object> eventClass = handler.getInputClass();
+        try {
+            System.out.printf("Processing message. Session: %s, Sequence #: %s. Contents: %s%n", serviceBusReceivedMessage.getMessageId(),
+                    serviceBusReceivedMessage.getSequenceNumber(), serviceBusReceivedMessage.getBody());
 
-        Function<Message, DomainEvent<Object>> converter = msj -> messageConverter.readDomainEvent(msj, eventClass);
 
-        final EventExecutor<Object> executor = new EventExecutor<>(handler.getHandler(), converter);
+            final Message message = org.reactivecommons.async.servicebus.ServiceBusMessage.fromDelivery(serviceBusReceivedMessage);
 
-        Listener listener = new EventListener(topicName, subscriptionName, executor);
+            RegisteredEventListener<Object> handler = getEventListener(message.getProperties().getHeaders().get("to").toString());
 
-        listener.start();
+            final Class<Object> eventClass = handler.getInputClass();
 
-        return Mono.just(listener);
+            Function<Message, DomainEvent<Object>> converter = msj -> messageConverter.readDomainEvent(msj, eventClass);
+
+            final EventExecutor<Object> executor = new EventExecutor<>(handler.getHandler(), converter);
+
+            executor.execute(message)
+                    .subscribeOn(scheduler);
+
+        } catch (Exception e) {
+            log.log(Level.SEVERE, format("ATTENTION !! Outer error protection reached for %s, in Async Consumer!! Severe Warning! ", serviceBusReceivedMessage.getRawAmqpMessage().getProperties().getMessageId()), e);
+        }
+
     }
 
     private RegisteredEventListener<Object> getEventListener(String matchedKey) {

@@ -1,5 +1,8 @@
 package org.reactivecommons.async.servicebus.listeners;
 
+import com.azure.messaging.servicebus.ServiceBusReceivedMessage;
+import com.azure.messaging.servicebus.ServiceBusReceivedMessageContext;
+import lombok.extern.java.Log;
 import org.reactivecommons.api.domain.Command;
 import org.reactivecommons.async.api.handlers.registered.RegisteredCommandHandler;
 import org.reactivecommons.async.commons.CommandExecutor;
@@ -10,55 +13,70 @@ import org.reactivecommons.async.servicebus.communucations.ReactiveMessageListen
 import org.reactivecommons.async.servicebus.communucations.TopologyCreator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
 
 import java.util.function.Function;
+import java.util.logging.Level;
 
+import static java.lang.String.format;
+
+@Log
 public class ApplicationCommandListener extends GenericMessageListener {
 
-    private final String topicName;
     private final MessageConverter messageConverter;
     private HandlerResolver resolver;
+
+    private final Scheduler scheduler = Schedulers.newParallel(getClass().getSimpleName(), 12);
 
     public ApplicationCommandListener(String topicName,
                                       ReactiveMessageListener reactiveMessageListener,
                                       HandlerResolver resolver,
                                       MessageConverter messageConverter,
-                                      String subscriptionName){
-        super(subscriptionName, reactiveMessageListener);
+                                      String subscriptionName) {
+        super(topicName, subscriptionName, reactiveMessageListener);
         this.resolver = resolver;
-        this.topicName = topicName;
         this.messageConverter = messageConverter;
     }
 
     protected Mono<Void> setUpBindings(TopologyCreator creator) {
 
         return creator.createTopic(topicName)
+                .then(creator.createSubscription(topicName, subscriptionName))
                 .thenMany(Flux.fromIterable(resolver.getCommandHandlers())
                         .flatMap(listener ->
-                                creator.createSubscription(topicName, listener.getPath())
-                                        .then(creator.createRulesubscription(topicName, listener.getPath(), listener.getPath())
-                                                .then(createListener(topicName, listener.getPath())))
+                                creator.createRulesubscription(topicName, subscriptionName, listener.getPath())
                         )
                 )
                 .then();
-
     }
 
-    private Mono<Listener> createListener(String topicName, String subscriptionName) {
 
-        final RegisteredCommandHandler<Object> handler = resolver.getCommandHandler(subscriptionName);
+    protected void processMessage(ServiceBusReceivedMessageContext context) {
 
-        final Class<Object> eventClass = handler.getInputClass();
+        ServiceBusReceivedMessage serviceBusReceivedMessage = context.getMessage();
 
-        Function<Message, Command<Object>> converter = msj -> messageConverter.readCommand(msj, eventClass);
+        try {
+            System.out.printf("Processing message. Session: %s, Sequence #: %s. Contents: %s%n", serviceBusReceivedMessage.getMessageId(),
+                    serviceBusReceivedMessage.getSequenceNumber(), serviceBusReceivedMessage.getBody());
 
-        final CommandExecutor<Object> executor = new CommandExecutor<>(handler.getHandler(), converter);
+            final Message message = org.reactivecommons.async.servicebus.ServiceBusMessage.fromDelivery(serviceBusReceivedMessage);
 
-        Listener listener = new CommandListener(topicName, subscriptionName, executor);
+            final Command<Object> command = messageConverter.readCommandStructure(message);
 
-        listener.start();
+            final RegisteredCommandHandler<Object> handler = resolver.getCommandHandler(command.getName());
 
-        return Mono.just(listener);
+            final Class<Object> eventClass = handler.getInputClass();
+
+            Function<Message, Command<Object>> converter = msj -> messageConverter.readCommand(msj, eventClass);
+
+            final CommandExecutor<Object> executor = new CommandExecutor<>(handler.getHandler(), converter);
+
+            executor.execute(message)
+                    .subscribeOn(scheduler);
+
+        } catch (Exception e) {
+            log.log(Level.SEVERE, format("ATTENTION !! Outer error protection reached for %s, in Async Consumer!! Severe Warning! ", serviceBusReceivedMessage.getRawAmqpMessage().getProperties().getMessageId()), e);
+        }
     }
-
 }

@@ -44,10 +44,12 @@ public class ReactiveMessageSender {
 
         for (int i = 0; i < numberOfSenderSubscriptions; ++i) {
             final Flux<MyOutboundMessage> messageSource = Flux.create(fluxSinkConfirm::add);
-            sender.sendWithTypedPublishConfirms(messageSource).doOnNext((OutboundMessageResult<MyOutboundMessage> outboundMessageResult) -> {
-                final Consumer<Boolean> ackNotifier = outboundMessageResult.getOutboundMessage().getAckNotifier();
-                executorService.submit(() -> ackNotifier.accept(outboundMessageResult.isAck()));
-            }).subscribe();
+            sender.sendWithTypedPublishConfirms(messageSource)
+                    .doOnNext((OutboundMessageResult<MyOutboundMessage> outboundMessageResult) -> {
+                                final Consumer<Boolean> ackNotifier = outboundMessageResult.getOutboundMessage().getAckNotifier();
+                                executorService.submit(() -> ackNotifier.accept(outboundMessageResult.isAck()));
+                            }
+                    ).subscribe();
         }
 
         final Flux<OutboundMessage> messageSourceNoConfirm = Flux.create(fluxSink -> {
@@ -61,7 +63,7 @@ public class ReactiveMessageSender {
         return Mono.create(monoSink -> {
             Consumer<Boolean> notifier = new AckNotifier(monoSink);
             final MyOutboundMessage outboundMessage = toOutboundMessage(message, exchange, routingKey, headers, notifier, persistent);
-            executorService2.submit(() -> fluxSinkConfirm.get((int) (System.currentTimeMillis()%numberOfSenderSubscriptions)).next(outboundMessage));
+            executorService2.submit(() -> fluxSinkConfirm.get((int) (System.currentTimeMillis() % numberOfSenderSubscriptions)).next(outboundMessage));
         });
     }
 
@@ -73,11 +75,11 @@ public class ReactiveMessageSender {
 
     public <T> Flux<OutboundMessageResult> sendWithConfirmBatch(Flux<T> messages, String exchange, String routingKey, Map<String, Object> headers, boolean persistent) {
         return messages.map(message -> toOutboundMessage(message, exchange, routingKey, headers, persistent))
-            .as(sender::sendWithPublishConfirms)
-            .flatMap(result -> result.isAck() ?
-                Mono.empty() :
-                Mono.error(new SendFailureNoAckException("Event no ACK in communications"))
-            );
+                .as(sender::sendWithPublishConfirms)
+                .flatMap(result -> result.isAck() ?
+                        Mono.empty() :
+                        Mono.error(new SendFailureNoAckException("Event no ACK in communications"))
+                );
     }
 
     private static class AckNotifier implements Consumer<Boolean> {
@@ -98,8 +100,7 @@ public class ReactiveMessageSender {
     }
 
 
-
-    static class MyOutboundMessage extends OutboundMessage{
+    static class MyOutboundMessage extends OutboundMessage {
 
         private final Consumer<Boolean> ackNotifier;
 
