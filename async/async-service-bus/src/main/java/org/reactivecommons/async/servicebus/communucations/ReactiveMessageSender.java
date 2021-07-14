@@ -11,6 +11,7 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @RequiredArgsConstructor
@@ -39,7 +40,7 @@ public class ReactiveMessageSender {
         return senderClient.sendMessage(serviceBusMessage);
     }
 
-    public <T> Mono<Void> publish(T object, String topicName, String ruleName,  Map<String, Object> headers) {
+    public <T> Mono<Void> publishAsync(T object, String topicName, String ruleName, Map<String, Object> headers) {
 
         Message message = messageConverter.toMessage(object);
 
@@ -62,5 +63,9 @@ public class ReactiveMessageSender {
                 .subscribe();
 
         return  Mono.empty();
+    }
+
+    public <T> Mono<Void> publishAsync(T object, String topicName, String ruleName) {
+       return publishAsync(object, topicName, ruleName, new HashMap<>());
     }
 }

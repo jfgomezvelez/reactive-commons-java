@@ -11,7 +11,6 @@ import org.reactivecommons.async.commons.reply.ReactiveReplyRouter;
 import org.reactivecommons.async.servicebus.communucations.ReactiveMessageSender;
 import reactor.core.publisher.Mono;
 
-import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -34,7 +33,7 @@ public class ServiceBusDirectAsyncGateway implements DirectAsyncGateway {
 
     @Override
     public <T> Mono<Void> sendCommand(Command<T> command, String targetName) {
-        return null;
+        return sender.publish(command, topicName, command.getName());
     }
 
     @Override
@@ -52,7 +51,7 @@ public class ServiceBusDirectAsyncGateway implements DirectAsyncGateway {
         headers.put(SERVED_QUERY_ID, query.getResource());
         headers.put(CORRELATION_ID, correlationID);
 
-        return sender.publish(query, topicName, query.getResource(), headers).then(replyHolder);
+        return sender.publishAsync(query, topicName, query.getResource(), headers).then(replyHolder);
     }
 
     @Override
@@ -65,6 +64,6 @@ public class ServiceBusDirectAsyncGateway implements DirectAsyncGateway {
             headers.put(COMPLETION_ONLY_SIGNAL, TRUE.toString());
         }
 
-        return null;
+        return sender.publishAsync(response, "globalReply", from.getReplyID(), headers);
     }
 }

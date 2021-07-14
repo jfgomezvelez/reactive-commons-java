@@ -105,6 +105,6 @@ public class ApplicationQueryListener extends GenericMessageListener {
 
         headers.put(CORRELATION_ID, correlationID);
 
-        return reactiveMessageSender.publish(object, replyTopicName, replyID, headers);
+        return reactiveMessageSender.publishAsync(object, replyTopicName, replyID, headers);
     }
 }
