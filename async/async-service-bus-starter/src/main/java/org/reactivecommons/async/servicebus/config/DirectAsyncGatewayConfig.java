@@ -26,7 +26,7 @@ public class DirectAsyncGatewayConfig {
     public ServiceBusDirectAsyncGateway rabbitDirectAsyncGateway(BrokerConfig config,
                                                                  ReactiveReplyRouter router,
                                                                  ReactiveMessageSender sender,
-                                                                 MessageConverter converter) throws Exception {
+                                                                 MessageConverter converter) {
         return new ServiceBusDirectAsyncGateway(config, sender, router , converter, props.getDirectMessagesExchangeName());
     }
 
