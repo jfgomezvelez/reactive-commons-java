@@ -7,6 +7,7 @@ import org.reactivecommons.async.commons.reply.ReactiveReplyRouter;
 import org.reactivecommons.async.servicebus.ServiceBusDirectAsyncGateway;
 import org.reactivecommons.async.servicebus.communucations.ReactiveMessageListener;
 import org.reactivecommons.async.servicebus.communucations.ReactiveMessageSender;
+import org.reactivecommons.async.servicebus.config.props.AsyncProps;
 import org.reactivecommons.async.servicebus.config.props.AzureProps;
 import org.reactivecommons.async.servicebus.config.props.BrokerConfigProps;
 import org.reactivecommons.async.servicebus.listeners.ApplicationReplyListener;
@@ -20,6 +21,7 @@ import org.springframework.context.annotation.Import;
 public class DirectAsyncGatewayConfig {
 
     private final BrokerConfigProps props;
+    private final AsyncProps asyncProps;
     private final AzureProps azureProps;
 
     @Bean
@@ -39,7 +41,7 @@ public class DirectAsyncGatewayConfig {
                 props.getReplyQueue(),
                 azureProps.getConnectionString()
         );
-        replyListener.startListening(config.getRoutingKey());
+        replyListener.startListening(config.getRoutingKey(), asyncProps.getGlobal().getIdleIntervalAutomaticallyDeleted());
         return replyListener;
     }
 

@@ -1,6 +1,7 @@
 package org.reactivecommons.async.servicebus.communucations;
 
 
+import com.azure.resourcemanager.containerservice.models.TimeSpan;
 import com.microsoft.azure.servicebus.management.ManagementClient;
 import com.microsoft.azure.servicebus.management.SubscriptionDescription;
 import com.microsoft.azure.servicebus.management.TopicDescription;
@@ -10,6 +11,9 @@ import com.microsoft.azure.servicebus.rules.RuleDescription;
 import lombok.AllArgsConstructor;
 import lombok.extern.java.Log;
 import reactor.core.publisher.Mono;
+
+import java.time.Duration;
+import java.util.Optional;
 
 @Log
 @AllArgsConstructor
@@ -22,8 +26,7 @@ public class TopologyCreator {
         log.info("Creando topic de service bus....");
 
         try {
-            if(!managementClient.topicExists(topicName))
-            {
+            if (!managementClient.topicExists(topicName)) {
                 managementClient.createTopic(topicName);
             }
         } catch (ServiceBusException e) {
@@ -36,13 +39,14 @@ public class TopologyCreator {
         return Mono.empty();
     }
 
-    public Mono<Void> createSubscription(String topicName, String subscriptionName) {
+    public Mono<Void> createSubscription(String topicName, String subscriptionName, Optional<Integer> idleIntervalAutomaticallyDeleted) {
 
         log.info("Creando subscription de service bus....");
         try {
-            if(!managementClient.subscriptionExists(topicName, subscriptionName))
-            {
-                managementClient.createSubscription(topicName, subscriptionName);
+            if (!managementClient.subscriptionExists(topicName, subscriptionName)) {
+                SubscriptionDescription subscriptionDescription = new SubscriptionDescription(topicName, subscriptionName);
+                idleIntervalAutomaticallyDeleted.ifPresent(value -> subscriptionDescription.setAutoDeleteOnIdle(Duration.ofMinutes(value)));
+                managementClient.createSubscription(subscriptionDescription);
                 managementClient.deleteRule(topicName, subscriptionName, "$Default");
             }
         } catch (ServiceBusException e) {
@@ -55,12 +59,15 @@ public class TopologyCreator {
         return Mono.empty();
     }
 
+    public Mono<Void> createSubscription(String topicName, String subscriptionName) {
+        return createSubscription(topicName, subscriptionName, Optional.empty());
+    }
+
     public Mono<Void> createRulesubscription(String topicName, String subscriptionName, String filterPath) {
 
         log.info("Creando rule subscription de service bus....");
         try {
-            if(!managementClient.ruleExists(topicName, subscriptionName, filterPath))
-            {
+            if (!managementClient.ruleExists(topicName, subscriptionName, filterPath)) {
                 CorrelationFilter correlationFilter = new CorrelationFilter();
                 correlationFilter.setTo(filterPath);
                 managementClient.createRule(topicName, subscriptionName, new RuleDescription(filterPath, correlationFilter));

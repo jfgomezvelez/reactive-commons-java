@@ -9,6 +9,7 @@ import org.reactivecommons.async.servicebus.communucations.ReactiveMessageListen
 import org.reactivecommons.async.servicebus.communucations.TopologyCreator;
 import reactor.core.publisher.Mono;
 
+import java.util.Optional;
 import java.util.logging.Level;
 
 import static org.reactivecommons.async.commons.Headers.COMPLETION_ONLY_SIGNAL;
@@ -38,10 +39,10 @@ public class ApplicationReplyListener {
         this.connectionString = connectionString;
     }
 
-    public void startListening(String routeKey) {
+    public void startListening(String routeKey, Optional<Integer> idleIntervalAutomaticallyDeleted) {
 
         creator.createTopic(topicName)
-                .then(creator.createSubscription(topicName, subscriptionName))
+                .then(creator.createSubscription(topicName, subscriptionName, idleIntervalAutomaticallyDeleted))
                 .then(creator.createRulesubscription(topicName, subscriptionName, routeKey))
                 .then(createLister());
     }
