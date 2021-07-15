@@ -1,6 +1,7 @@
 package org.reactivecommons.async.servicebus.listeners;
 
 import com.azure.messaging.servicebus.ServiceBusReceivedMessageContext;
+import lombok.Data;
 import lombok.extern.java.Log;
 import org.reactivecommons.async.commons.communications.Message;
 import org.reactivecommons.async.commons.reply.ReactiveReplyRouter;
@@ -15,6 +16,7 @@ import static org.reactivecommons.async.commons.Headers.COMPLETION_ONLY_SIGNAL;
 import static org.reactivecommons.async.commons.Headers.CORRELATION_ID;
 
 @Log
+@Data
 public class ApplicationReplyListener {
 
     private final ReactiveReplyRouter router;

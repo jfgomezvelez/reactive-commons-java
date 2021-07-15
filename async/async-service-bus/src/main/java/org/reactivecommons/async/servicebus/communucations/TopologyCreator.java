@@ -19,6 +19,16 @@ public class TopologyCreator {
 
     private final ManagementClient managementClient;
 
+    public void deleteSubscription(String topicName, String subscriptionName) {
+        try {
+            managementClient.deleteSubscription(topicName, subscriptionName);
+        } catch (ServiceBusException e) {
+            log.info("Error creando topic ServiceBusException".concat(e.getMessage()));
+        } catch (InterruptedException e) {
+            log.info("Error creando topic InterruptedException ".concat(e.getMessage()));
+        }
+    }
+
     public Mono<Void> createTopic(String topicName) {
 
         log.info("Creando topic de service bus....");

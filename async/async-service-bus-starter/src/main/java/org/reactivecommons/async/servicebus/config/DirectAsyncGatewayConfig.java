@@ -7,7 +7,7 @@ import org.reactivecommons.async.commons.reply.ReactiveReplyRouter;
 import org.reactivecommons.async.servicebus.ServiceBusDirectAsyncGateway;
 import org.reactivecommons.async.servicebus.communucations.ReactiveMessageListener;
 import org.reactivecommons.async.servicebus.communucations.ReactiveMessageSender;
-import org.reactivecommons.async.servicebus.config.props.AsyncProps;
+import org.reactivecommons.async.servicebus.communucations.TopologyCreator;
 import org.reactivecommons.async.servicebus.config.props.AzureProps;
 import org.reactivecommons.async.servicebus.config.props.BrokerConfigProps;
 import org.reactivecommons.async.servicebus.listeners.ApplicationReplyListener;
@@ -21,7 +21,6 @@ import org.springframework.context.annotation.Import;
 public class DirectAsyncGatewayConfig {
 
     private final BrokerConfigProps props;
-    private final AsyncProps asyncProps;
     private final AzureProps azureProps;
 
     @Bean
@@ -29,11 +28,11 @@ public class DirectAsyncGatewayConfig {
                                                                  ReactiveReplyRouter router,
                                                                  ReactiveMessageSender sender,
                                                                  MessageConverter converter) {
-        return new ServiceBusDirectAsyncGateway(config, sender, router , converter, props.getDirectMessagesExchangeName());
+        return new ServiceBusDirectAsyncGateway(config, sender, router, converter, props.getDirectMessagesExchangeName());
     }
 
     @Bean
-    public ApplicationReplyListener msgListener(ReactiveReplyRouter router, BrokerConfig config, ReactiveMessageListener listener)  {
+    public ApplicationReplyListener msgListener(ReactiveReplyRouter router, BrokerConfig config, ReactiveMessageListener listener) {
         final ApplicationReplyListener replyListener = new ApplicationReplyListener(
                 router,
                 listener,
@@ -49,5 +48,10 @@ public class DirectAsyncGatewayConfig {
     @Bean
     public ReactiveReplyRouter router() {
         return new ReactiveReplyRouter();
+    }
+
+    @Bean(destroyMethod = "destroy")
+    public ComponentDestroy componentDestroy(ApplicationReplyListener applicationReplyListener) {
+        return new ComponentDestroy(applicationReplyListener);
     }
 }
