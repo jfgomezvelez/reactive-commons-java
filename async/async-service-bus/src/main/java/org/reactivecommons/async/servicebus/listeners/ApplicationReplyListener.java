@@ -39,10 +39,10 @@ public class ApplicationReplyListener {
         this.connectionString = connectionString;
     }
 
-    public void startListening(String routeKey, Optional<Integer> idleIntervalAutomaticallyDeleted) {
+    public void startListening(String routeKey/*, Optional<Integer> idleIntervalAutomaticallyDeleted*/) {
 
         creator.createTopic(topicName)
-                .then(creator.createSubscription(topicName, subscriptionName, idleIntervalAutomaticallyDeleted))
+                .then(creator.createSubscription(topicName, subscriptionName/*, idleIntervalAutomaticallyDeleted*/))
                 .then(creator.createRulesubscription(topicName, subscriptionName, routeKey))
                 .then(createLister());
     }

@@ -41,7 +41,7 @@ public class DirectAsyncGatewayConfig {
                 props.getReplyQueue(),
                 azureProps.getConnectionString()
         );
-        replyListener.startListening(config.getRoutingKey(), asyncProps.getGlobal().getIdleIntervalAutomaticallyDeleted());
+        replyListener.startListening(config.getRoutingKey()/*, asyncProps.getGlobal().getIdleIntervalAutomaticallyDeleted()*/);
         return replyListener;
     }
 

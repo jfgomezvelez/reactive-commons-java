@@ -1,10 +1,7 @@
 package org.reactivecommons.async.servicebus.communucations;
 
-
-import com.azure.resourcemanager.containerservice.models.TimeSpan;
 import com.microsoft.azure.servicebus.management.ManagementClient;
 import com.microsoft.azure.servicebus.management.SubscriptionDescription;
-import com.microsoft.azure.servicebus.management.TopicDescription;
 import com.microsoft.azure.servicebus.primitives.ServiceBusException;
 import com.microsoft.azure.servicebus.rules.CorrelationFilter;
 import com.microsoft.azure.servicebus.rules.RuleDescription;
@@ -45,7 +42,7 @@ public class TopologyCreator {
         try {
             if (!managementClient.subscriptionExists(topicName, subscriptionName)) {
                 SubscriptionDescription subscriptionDescription = new SubscriptionDescription(topicName, subscriptionName);
-                idleIntervalAutomaticallyDeleted.ifPresent(value -> subscriptionDescription.setAutoDeleteOnIdle(Duration.ofMinutes(value)));
+                //idleIntervalAutomaticallyDeleted.ifPresent(value -> subscriptionDescription.setAutoDeleteOnIdle(Duration.ofMinutes(value)));
                 managementClient.createSubscription(subscriptionDescription);
                 managementClient.deleteRule(topicName, subscriptionName, "$Default");
             }
