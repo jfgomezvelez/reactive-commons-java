@@ -9,7 +9,6 @@ import org.reactivecommons.async.servicebus.communucations.ReactiveMessageListen
 import org.reactivecommons.async.servicebus.communucations.TopologyCreator;
 import reactor.core.publisher.Mono;
 
-import java.util.Optional;
 import java.util.logging.Level;
 
 import static org.reactivecommons.async.commons.Headers.COMPLETION_ONLY_SIGNAL;

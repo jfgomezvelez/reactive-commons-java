@@ -13,10 +13,6 @@ public class GlobalProps {
 
     private Optional<Integer> maxLengthBytes = Optional.empty();
 
-    private Optional<String> queueId = Optional.empty();
-
-    private Optional<String> routingKeyId = Optional.empty();
-
     //private Optional<Integer> idleIntervalAutomaticallyDeleted = Optional.of(5);
 
 }

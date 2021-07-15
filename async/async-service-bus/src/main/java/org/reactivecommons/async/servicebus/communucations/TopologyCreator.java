@@ -2,6 +2,7 @@ package org.reactivecommons.async.servicebus.communucations;
 
 import com.microsoft.azure.servicebus.management.ManagementClient;
 import com.microsoft.azure.servicebus.management.SubscriptionDescription;
+import com.microsoft.azure.servicebus.management.TopicDescription;
 import com.microsoft.azure.servicebus.primitives.ServiceBusException;
 import com.microsoft.azure.servicebus.rules.CorrelationFilter;
 import com.microsoft.azure.servicebus.rules.RuleDescription;

@@ -38,10 +38,10 @@ public class DirectAsyncGatewayConfig {
                 router,
                 listener,
                 props.getGlobalReplyExchangeName(),
-                asyncProps.getGlobal().getQueueId().map(queueId -> props.getAppName().concat("-").concat(queueId)).orElse(props.getReplyQueue()),
+                props.getReplyQueue(),
                 azureProps.getConnectionString()
         );
-        replyListener.startListening(asyncProps.getGlobal().getRoutingKeyId().orElse(config.getRoutingKey())/*, asyncProps.getGlobal().getIdleIntervalAutomaticallyDeleted()*/);
+        replyListener.startListening(config.getRoutingKey()/*, asyncProps.getGlobal().getIdleIntervalAutomaticallyDeleted()*/);
         return replyListener;
     }
 
