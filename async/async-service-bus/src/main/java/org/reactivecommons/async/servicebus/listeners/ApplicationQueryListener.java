@@ -38,8 +38,9 @@ public class ApplicationQueryListener extends GenericMessageListener {
             String replyTopicName,
             String subscriptionName,
             CustomReporter customReporter,
-            String connectionString) {
-        super(directTopicName, subscriptionName, reactiveMessageListener, customReporter, "query", connectionString);
+            String connectionString,
+            boolean withDLQRetry) {
+        super(directTopicName, subscriptionName, reactiveMessageListener, customReporter, "query", connectionString, withDLQRetry);
         this.resolver = resolver;
         this.converter = converter;
         this.reactiveMessageSender = reactiveMessageSender;
@@ -49,7 +50,7 @@ public class ApplicationQueryListener extends GenericMessageListener {
     protected Mono<Void> setUpBindings(TopologyCreator creator) {
 
         return creator.createTopic(topicName)
-                .then(creator.createSubscription(topicName, subscriptionName))
+                .then(creator.createSubscription(topicName, subscriptionName, withDLQRetry))
                 .thenMany(Flux.fromIterable(resolver.getQueryHandlers())
                         .flatMap(listener ->
                                 creator.createRulesubscription(topicName, subscriptionName, listener.getPath())

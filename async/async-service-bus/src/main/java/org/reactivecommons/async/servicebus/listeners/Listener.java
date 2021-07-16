@@ -1,10 +1,17 @@
 package org.reactivecommons.async.servicebus.listeners;
 
 import com.azure.messaging.servicebus.*;
+import com.azure.messaging.servicebus.models.ServiceBusReceiveMode;
+import com.microsoft.azure.servicebus.ClientSettings;
+import com.microsoft.azure.servicebus.QueueClient;
+import com.microsoft.azure.servicebus.ReceiveMode;
+import com.microsoft.azure.servicebus.primitives.RetryPolicy;
+import com.microsoft.azure.servicebus.security.TokenProvider;
 import lombok.extern.java.Log;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -16,19 +23,22 @@ public class Listener {
     private final String subscriptionName;
     protected final Consumer<ServiceBusReceivedMessageContext> processMessage;
     private final String connectionString;
+    private final int prefetchCount;
 
     public Listener(String topicName, String subscriptionName, Consumer<ServiceBusReceivedMessageContext> processMessage, String connectionString) {
         this.topicName = topicName;
         this.subscriptionName = subscriptionName;
         this.processMessage = processMessage;
         this.connectionString = connectionString;
+        this.prefetchCount = 0;
     }
 
-    public Listener(String topicName, String subscriptionName, String connectionString) {
+    public Listener(String topicName, String subscriptionName, String connectionString, int prefetchCount) {
         this.topicName = topicName;
         this.subscriptionName = subscriptionName;
         this.processMessage = null;
         this.connectionString = connectionString;
+        this.prefetchCount = prefetchCount;
     }
 
     public Mono<Void> start() {
@@ -41,6 +51,7 @@ public class Listener {
                 .topicName(topicName)
                 .subscriptionName(subscriptionName)
                 .processMessage(processMessage)
+                .prefetchCount(prefetchCount)
                 .processError(context -> processError(context, countdownLatch))
                 .buildProcessorClient();
 
@@ -56,6 +67,7 @@ public class Listener {
                 .receiver()
                 .topicName(topicName)
                 .subscriptionName(subscriptionName)
+                //.receiveMode(ServiceBusReceiveMode.)
                 .buildAsyncClient();
 
         return receiver.receiveMessages();

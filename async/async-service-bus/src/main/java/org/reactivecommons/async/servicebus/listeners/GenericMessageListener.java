@@ -35,6 +35,8 @@ public abstract class GenericMessageListener {
     private final String objectType;
     private volatile Flux<ServiceBusReceivedMessage> messageFlux;
     private final String connectionString;
+    protected final boolean withDLQRetry;
+
 
     public GenericMessageListener(
             String topicName,
@@ -42,22 +44,24 @@ public abstract class GenericMessageListener {
             ReactiveMessageListener reactiveMessageListener,
             CustomReporter customReporter,
             String objectType,
-            String connectionString) {
+            String connectionString,
+            boolean withDLQRetry) {
         this.topicName = topicName;
         this.subscriptionName = subscriptionName;
         this.reactiveMessageListener = reactiveMessageListener;
         this.customReporter = customReporter;
         this.objectType = objectType;
         this.connectionString = connectionString;
+        this.withDLQRetry = withDLQRetry;
     }
 
     public void startListener() {
-        log.log(Level.INFO, "Using max concurrency {0}, in queue: {1}", new Object[]{reactiveMessageListener.getMaxConcurrency(), subscriptionName});
-//        if (useDLQRetries) {
-//            log.log(Level.INFO, "ATTENTION! Using DLQ Strategy for retries with {0} + 1 Max Retries configured!", new Object[]{maxRetries});
-//        } else {
-//            log.log(Level.INFO, "ATTENTION! Using infinite fast retries as Retry Strategy");
-//        }
+        log.log(Level.INFO, "Using max concurrency {0}, in queue: {1}", new Object[]{reactiveMessageListener.getMaxConcurrency()/*, queueName*/});
+        if (withDLQRetry) {
+            log.log(Level.INFO, "ATTENTION! Using DLQ Strategy for retries with {0} + 1 Max Retries configured!"/*, new Object[]{maxRetries}*/);
+        } else {
+            log.log(Level.INFO, "ATTENTION! Using infinite fast retries as Retry Strategy");
+        }
 
         this.messageFlux = setUpBindings(reactiveMessageListener.getTopologyCreator())
                 .thenMany(createListenerAsync(topicName, subscriptionName))
@@ -86,7 +90,7 @@ public abstract class GenericMessageListener {
 
     private Flux<ServiceBusReceivedMessage> createListenerAsync(String topicName, String subscriptionName) {
 
-        Listener listener = new Listener(topicName, subscriptionName, connectionString);
+        Listener listener = new Listener(topicName, subscriptionName, connectionString, reactiveMessageListener.getPrefetchCount());
 
         return listener.startAsync();
     }

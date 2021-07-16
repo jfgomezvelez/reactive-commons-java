@@ -34,7 +34,8 @@ public class EventListenersConfig {
                                                   CustomReporter errorReporter) {
 
         final ApplicationEventListener applicationEventListener = new ApplicationEventListener(asyncProps.getDomain().getEvents().getExchange(),
-                 reactiveMessageListener, resolver, messageConverter, appName + ".subsEvents", errorReporter, azureProps.getConnectionString());
+                 reactiveMessageListener, resolver, messageConverter, appName + ".subsEvents",
+                errorReporter, azureProps.getConnectionString(), asyncProps.getWithDLQRetry());
 
         applicationEventListener.startListener();
 

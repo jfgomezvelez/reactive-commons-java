@@ -29,8 +29,9 @@ public class ApplicationCommandListener extends GenericMessageListener {
                                       MessageConverter messageConverter,
                                       String subscriptionName,
                                       CustomReporter errorReporter,
-                                      String connectionString) {
-        super(topicName, subscriptionName, reactiveMessageListener, errorReporter, "command", connectionString);
+                                      String connectionString,
+                                      boolean withDLQRetry) {
+        super(topicName, subscriptionName, reactiveMessageListener, errorReporter, "command", connectionString, withDLQRetry);
         this.resolver = resolver;
         this.messageConverter = messageConverter;
     }
@@ -38,7 +39,7 @@ public class ApplicationCommandListener extends GenericMessageListener {
     protected Mono<Void> setUpBindings(TopologyCreator creator) {
 
         return creator.createTopic(topicName)
-                .then(creator.createSubscription(topicName, subscriptionName))
+                .then(creator.createSubscription(topicName, subscriptionName, withDLQRetry))
                 .thenMany(Flux.fromIterable(resolver.getCommandHandlers())
                         .flatMap(listener ->
                                 creator.createRulesubscription(topicName, subscriptionName, listener.getPath())

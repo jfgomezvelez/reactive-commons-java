@@ -37,7 +37,8 @@ public class CommandListenersConfig {
                 converter,
                 appName,
                 errorReporter,
-                azureProps.getConnectionString()
+                azureProps.getConnectionString(),
+                asyncProps.getWithDLQRetry()
         );
 
         applicationCommandListener.startListener();

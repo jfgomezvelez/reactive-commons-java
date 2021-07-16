@@ -36,9 +36,10 @@ public class ApplicationEventListener extends GenericMessageListener {
                                     MessageConverter messageConverter,
                                     String subscriptionName,
                                     CustomReporter errorReporter,
-                                    String connectionString
+                                    String connectionString,
+                                    boolean withDLQRetry
     ) {
-        super(topicName ,subscriptionName, reactiveMessageListener, errorReporter, "event", connectionString);
+        super(topicName ,subscriptionName, reactiveMessageListener, errorReporter, "event", connectionString, withDLQRetry);
         this.resolver = resolver;
         this.messageConverter = messageConverter;
         this.keyMatcher = new KeyMatcher();
@@ -46,7 +47,7 @@ public class ApplicationEventListener extends GenericMessageListener {
 
     protected Mono<Void> setUpBindings(TopologyCreator creator) {
         return creator.createTopic(topicName)
-                .then(creator.createSubscription(topicName, subscriptionName))
+                .then(creator.createSubscription(topicName, subscriptionName, withDLQRetry))
                 .thenMany(Flux.fromIterable(resolver.getEventListeners())
                         .flatMap(listener ->
                                 creator.createRulesubscription(topicName, subscriptionName, listener.getPath())

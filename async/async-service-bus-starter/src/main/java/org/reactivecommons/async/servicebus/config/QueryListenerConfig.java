@@ -44,7 +44,8 @@ public class QueryListenerConfig {
                 asyncProps.getGlobal().getExchange(),
                 appName + ".query",
                 errorReporter,
-                azureProps.getConnectionString());
+                azureProps.getConnectionString(),
+                asyncProps.getWithDLQRetry());
 
         applicationQueryListener.startListener();
 

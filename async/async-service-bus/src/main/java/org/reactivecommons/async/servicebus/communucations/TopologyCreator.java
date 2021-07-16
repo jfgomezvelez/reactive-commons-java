@@ -2,16 +2,12 @@ package org.reactivecommons.async.servicebus.communucations;
 
 import com.microsoft.azure.servicebus.management.ManagementClient;
 import com.microsoft.azure.servicebus.management.SubscriptionDescription;
-import com.microsoft.azure.servicebus.management.TopicDescription;
 import com.microsoft.azure.servicebus.primitives.ServiceBusException;
 import com.microsoft.azure.servicebus.rules.CorrelationFilter;
 import com.microsoft.azure.servicebus.rules.RuleDescription;
 import lombok.AllArgsConstructor;
 import lombok.extern.java.Log;
 import reactor.core.publisher.Mono;
-
-import java.time.Duration;
-import java.util.Optional;
 
 @Log
 @AllArgsConstructor
@@ -47,13 +43,13 @@ public class TopologyCreator {
         return Mono.empty();
     }
 
-    public Mono<Void> createSubscription(String topicName, String subscriptionName, Optional<Integer> idleIntervalAutomaticallyDeleted) {
+    public Mono<Void> createSubscription(String topicName, String subscriptionName, boolean withDLQRetry) {
 
         log.info("Creando subscription de service bus....");
         try {
             if (!managementClient.subscriptionExists(topicName, subscriptionName)) {
                 SubscriptionDescription subscriptionDescription = new SubscriptionDescription(topicName, subscriptionName);
-                //idleIntervalAutomaticallyDeleted.ifPresent(value -> subscriptionDescription.setAutoDeleteOnIdle(Duration.ofMinutes(value)));
+                subscriptionDescription.setEnableDeadLetteringOnMessageExpiration(withDLQRetry);
                 managementClient.createSubscription(subscriptionDescription);
                 managementClient.deleteRule(topicName, subscriptionName, "$Default");
             }
@@ -65,10 +61,6 @@ public class TopologyCreator {
             return Mono.error(new TopologyDefException(e));
         }
         return Mono.empty();
-    }
-
-    public Mono<Void> createSubscription(String topicName, String subscriptionName) {
-        return createSubscription(topicName, subscriptionName, Optional.empty());
     }
 
     public Mono<Void> createRulesubscription(String topicName, String subscriptionName, String filterPath) {
