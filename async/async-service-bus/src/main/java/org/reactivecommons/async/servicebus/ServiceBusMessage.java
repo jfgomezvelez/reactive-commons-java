@@ -25,8 +25,8 @@ public class ServiceBusMessage implements Message {
         return new ServiceBusMessage(message.getBody().toBytes(), createMessageProps(message));
     }
 
-    private static Message.Properties createMessageProps(ServiceBusReceivedMessage message) {
-        final ServiceBusMessage.ServiceBusMessageProperties properties = new ServiceBusMessage.ServiceBusMessageProperties();
+    private static Properties createMessageProps(ServiceBusReceivedMessage message) {
+        final ServiceBusMessageProperties properties = new ServiceBusMessageProperties();
         properties.setHeaders(message.getApplicationProperties());
         properties.getHeaders().putAll(getHeaders(message.getRawAmqpMessage().getProperties()));
         properties.setContentType(message.getContentType());

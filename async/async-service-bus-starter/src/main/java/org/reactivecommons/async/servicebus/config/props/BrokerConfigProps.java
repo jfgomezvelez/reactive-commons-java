@@ -67,4 +67,6 @@ public class BrokerConfigProps implements IBrokerConfigProps {
     public String getGlobalReplyExchangeName() {
         return asyncProps.getGlobal().getExchange();
     }
+
+
 }

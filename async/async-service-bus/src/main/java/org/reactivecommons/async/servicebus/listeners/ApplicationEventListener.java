@@ -1,9 +1,11 @@
 package org.reactivecommons.async.servicebus.listeners;
 
+import com.azure.messaging.servicebus.ServiceBusClientBuilder;
 import com.azure.messaging.servicebus.ServiceBusReceivedMessage;
 import lombok.extern.java.Log;
 import org.reactivecommons.api.domain.DomainEvent;
 import org.reactivecommons.async.api.handlers.registered.RegisteredEventListener;
+import org.reactivecommons.async.commons.DiscardNotifier;
 import org.reactivecommons.async.commons.EventExecutor;
 import org.reactivecommons.async.commons.communications.Message;
 import org.reactivecommons.async.commons.converters.MessageConverter;
@@ -15,8 +17,6 @@ import org.reactivecommons.async.servicebus.communucations.ReactiveMessageListen
 import org.reactivecommons.async.servicebus.communucations.TopologyCreator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Scheduler;
-import reactor.core.scheduler.Schedulers;
 
 import java.util.function.Function;
 
@@ -27,8 +27,7 @@ public class ApplicationEventListener extends GenericMessageListener {
     private final HandlerResolver resolver;
     private final MessageConverter messageConverter;
     private final Matcher keyMatcher;
-    private final Scheduler scheduler = Schedulers.newParallel(getClass().getSimpleName(), 12);
-
+    private final long autoDeleteOnIdle;
 
     public ApplicationEventListener(String topicName,
                                     ReactiveMessageListener reactiveMessageListener,
@@ -36,18 +35,28 @@ public class ApplicationEventListener extends GenericMessageListener {
                                     MessageConverter messageConverter,
                                     String subscriptionName,
                                     CustomReporter errorReporter,
-                                    String connectionString,
-                                    boolean withDLQRetry
+                                    boolean withDLQRetry,
+                                    int maxDeliveryCount,
+                                    int delayBetweenRetry,
+                                    long messageLockDuration,
+                                    long messageTimeToLive,
+                                    long autoDeleteOnIdle,
+                                    DiscardNotifier discardNotifier,
+                                    ServiceBusClientBuilder serviceBusClientBuilder
     ) {
-        super(topicName ,subscriptionName, reactiveMessageListener, errorReporter, "event", connectionString, withDLQRetry);
+        super(topicName ,subscriptionName, reactiveMessageListener, errorReporter, "event"
+                , withDLQRetry, maxDeliveryCount, delayBetweenRetry, messageLockDuration, messageTimeToLive,
+                discardNotifier, serviceBusClientBuilder, true);
         this.resolver = resolver;
         this.messageConverter = messageConverter;
         this.keyMatcher = new KeyMatcher();
+        this.autoDeleteOnIdle = autoDeleteOnIdle;
     }
 
     protected Mono<Void> setUpBindings(TopologyCreator creator) {
         return creator.createTopic(topicName)
-                .then(creator.createSubscription(topicName, subscriptionName, withDLQRetry))
+                .then(creator.createSubscription(topicName, subscriptionName, withDLQRetry, maxDeliveryCount,
+                        messageLockDuration, messageTimeToLive, autoDeleteOnIdle))
                 .thenMany(Flux.fromIterable(resolver.getEventListeners())
                         .flatMap(listener ->
                                 creator.createRulesubscription(topicName, subscriptionName, listener.getPath())

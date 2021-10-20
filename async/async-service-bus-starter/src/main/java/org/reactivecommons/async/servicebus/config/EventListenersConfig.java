@@ -1,7 +1,9 @@
 package org.reactivecommons.async.servicebus.config;
 
+import com.azure.messaging.servicebus.ServiceBusClientBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
+import org.reactivecommons.async.commons.DiscardNotifier;
 import org.reactivecommons.async.commons.converters.MessageConverter;
 import org.reactivecommons.async.commons.ext.CustomReporter;
 import org.reactivecommons.async.servicebus.HandlerResolver;
@@ -31,11 +33,19 @@ public class EventListenersConfig {
     public ApplicationEventListener eventListener(HandlerResolver resolver,
                                                   MessageConverter messageConverter,
                                                   ReactiveMessageListener reactiveMessageListener,
-                                                  CustomReporter errorReporter) {
+                                                  CustomReporter errorReporter,
+                                                  DiscardNotifier discardNotifier,
+                                                  ServiceBusClientBuilder serviceBusClientBuilder) {
 
         final ApplicationEventListener applicationEventListener = new ApplicationEventListener(asyncProps.getDomain().getEvents().getExchange(),
                  reactiveMessageListener, resolver, messageConverter, appName + ".subsEvents",
-                errorReporter, azureProps.getConnectionString(), asyncProps.getWithDLQRetry());
+                errorReporter, asyncProps.getWithDLQRetry(),
+                asyncProps.getDomain().getEvents().getMaxDeliveryCount(),
+                asyncProps.getDomain().getEvents().getDelayBetweenRetry(),
+                asyncProps.getDomain().getEvents().getMessageLockDuration(),
+                asyncProps.getDomain().getEvents().getMessageTimeToLive(),
+                asyncProps.getDomain().getEvents().getAutoDeleteOnIdle(),
+                discardNotifier, serviceBusClientBuilder);
 
         applicationEventListener.startListener();
 

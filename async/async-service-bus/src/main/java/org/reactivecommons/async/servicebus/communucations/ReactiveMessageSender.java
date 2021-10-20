@@ -8,34 +8,53 @@ import lombok.extern.log4j.Log4j2;
 import org.reactivecommons.async.commons.communications.Message;
 import org.reactivecommons.async.commons.converters.MessageConverter;
 import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Scheduler;
-import reactor.core.scheduler.Schedulers;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import static org.reactivecommons.async.commons.Headers.DESTINATION_TOPIC;
 
 @RequiredArgsConstructor
 @Log4j2
 public class ReactiveMessageSender {
 
-    private final ServiceBusClientBuilder.ServiceBusSenderClientBuilder serviceBusSenderClientBuilder;
+    private final ServiceBusClientBuilder serviceBusClientBuilder;
     private final MessageConverter messageConverter;
-    private final Scheduler scheduler = Schedulers.newParallel(getClass().getSimpleName(), 12);
 
-
-    public <T> Mono<Void> publish(T object, String topicName, String subscriptionName) {
+    public <T> Mono<Void> publishAsync(T object, String topicName, String subscriptionName) {
         Message message = messageConverter.toMessage(object);
 
-        ServiceBusSenderAsyncClient senderClient = serviceBusSenderClientBuilder
+        ServiceBusSenderAsyncClient senderClient = serviceBusClientBuilder
+                .sender()
                 .topicName(topicName)
                 .buildAsyncClient();
+
 
         ServiceBusMessage serviceBusMessage = new ServiceBusMessage(message.getBody());
 
         serviceBusMessage.setTo(subscriptionName);
 
+        final HashMap<String, Object> headers = new HashMap<>();
+
+        headers.put(DESTINATION_TOPIC, topicName);
+
+        serviceBusMessage.getApplicationProperties().putAll(headers);
+
         serviceBusMessage.setContentType(message.getProperties().getContentType());
+
         serviceBusMessage.getRawAmqpMessage().getProperties().setContentEncoding(serviceBusMessage.getContentType());
+
+        return senderClient.sendMessage(serviceBusMessage);
+    }
+
+    public  Mono<Void> publishAsync(ServiceBusMessage serviceBusMessage) {
+
+        String destinationTopic = serviceBusMessage.getApplicationProperties().get(DESTINATION_TOPIC).toString();
+
+        ServiceBusSenderAsyncClient senderClient = serviceBusClientBuilder
+                .sender()
+                .topicName(destinationTopic)
+                .buildAsyncClient();
 
         return senderClient.sendMessage(serviceBusMessage);
     }
@@ -44,7 +63,8 @@ public class ReactiveMessageSender {
 
         Message message = messageConverter.toMessage(object);
 
-        ServiceBusSenderAsyncClient senderClient = serviceBusSenderClientBuilder
+        ServiceBusSenderAsyncClient senderClient = serviceBusClientBuilder
+                .sender()
                 .topicName(topicName)
                 .buildAsyncClient();
 
@@ -52,20 +72,20 @@ public class ReactiveMessageSender {
 
         serviceBusMessage.setTo(ruleName);
 
+        final HashMap<String, Object> headersTopic = new HashMap<>();
+
+        headersTopic.put(DESTINATION_TOPIC, topicName);
+
+        serviceBusMessage.getApplicationProperties().putAll(headersTopic);
+
         serviceBusMessage.getApplicationProperties().putAll(headers);
 
         serviceBusMessage.setContentType(message.getProperties().getContentType());
 
         serviceBusMessage.getRawAmqpMessage().getProperties().setContentEncoding(serviceBusMessage.getContentType());
 
-        senderClient.sendMessage(serviceBusMessage)
-                .publishOn(scheduler)
-                .subscribe();
+        log.info(String.format("[DebPerf][RC][ENVIAND0-MENSAJE] [%s] [%s]", ruleName, topicName));
 
-        return  Mono.empty();
-    }
-
-    public <T> Mono<Void> publishAsync(T object, String topicName, String ruleName) {
-       return publishAsync(object, topicName, ruleName, new HashMap<>());
+        return senderClient.sendMessage(serviceBusMessage).doOnNext(resultado -> log.info(String.format("[DebPerf][RC][MENSAJE-ENVIADO] [%s] [%s]", ruleName, topicName)));
     }
 }

@@ -28,7 +28,7 @@ public class RabbitDiscardNotifier implements DiscardNotifier {
     }
 
     @Override
-    public Mono<Void> notifyDiscard(Message message) {
+    public Mono<Void> notifyDiscard(Message message, Throwable err ) {
         try {
             return notify(message).onErrorResume(this::onError);
         }catch (Exception e){

@@ -9,6 +9,8 @@ import lombok.AllArgsConstructor;
 import lombok.extern.java.Log;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
+
 @Log
 @AllArgsConstructor
 public class TopologyCreator {
@@ -43,18 +45,31 @@ public class TopologyCreator {
         return Mono.empty();
     }
 
-    public Mono<Void> createSubscription(String topicName, String subscriptionName, boolean withDLQRetry) {
+    public Mono<Void> createSubscription(String topicName, String subscriptionName,
+                                         boolean withDLQRetry,
+                                         int maxDeliveryCount,
+                                         long messageLockDuration,
+                                         long messageTimeToLive,
+                                         long autoDeleteOnIdle) {
 
         log.info("Creando subscription de service bus....");
         try {
+
+            SubscriptionDescription subscriptionDescription = new SubscriptionDescription(topicName, subscriptionName);
+            subscriptionDescription.setEnableDeadLetteringOnMessageExpiration(withDLQRetry);
+            subscriptionDescription.setMaxDeliveryCount(maxDeliveryCount);
+            subscriptionDescription.setLockDuration(Duration.ofSeconds(messageLockDuration));
+            subscriptionDescription.setDefaultMessageTimeToLive(Duration.ofDays(messageTimeToLive));
+            subscriptionDescription.setAutoDeleteOnIdle(Duration.ofMinutes(autoDeleteOnIdle));
+
             if (!managementClient.subscriptionExists(topicName, subscriptionName)) {
-                SubscriptionDescription subscriptionDescription = new SubscriptionDescription(topicName, subscriptionName);
-                subscriptionDescription.setEnableDeadLetteringOnMessageExpiration(withDLQRetry);
                 managementClient.createSubscription(subscriptionDescription);
                 managementClient.deleteRule(topicName, subscriptionName, "$Default");
+            } else {
+                managementClient.updateSubscription(subscriptionDescription);
             }
         } catch (ServiceBusException e) {
-            log.info("Error creando subscription ServiceBusException".concat(e.getMessage()));
+            log.info("Error creando subscription ServiceBusException ".concat(e.getMessage()));
             return Mono.error(new TopologyDefException(e));
         } catch (InterruptedException e) {
             log.info("Error creando subscription InterruptedException ".concat(e.getMessage()));
@@ -67,16 +82,18 @@ public class TopologyCreator {
 
         log.info("Creando rule subscription de service bus....");
         try {
+            CorrelationFilter correlationFilter = new CorrelationFilter();
+            correlationFilter.setTo(filterPath);
             if (!managementClient.ruleExists(topicName, subscriptionName, filterPath)) {
-                CorrelationFilter correlationFilter = new CorrelationFilter();
-                correlationFilter.setTo(filterPath);
                 managementClient.createRule(topicName, subscriptionName, new RuleDescription(filterPath, correlationFilter));
+            } else {
+                managementClient.updateRule(topicName, subscriptionName, new RuleDescription(filterPath, correlationFilter));
             }
         } catch (ServiceBusException e) {
-            log.info("Error creando subscription ServiceBusException".concat(e.getMessage()));
+            log.info("Error creando rule ServiceBusException ".concat(e.getMessage()));
             return Mono.error(new TopologyDefException(e));
         } catch (InterruptedException e) {
-            log.info("Error creando subscription InterruptedException ".concat(e.getMessage()));
+            log.info("Error creando rule InterruptedException ".concat(e.getMessage()));
             return Mono.error(new TopologyDefException(e));
         }
         return Mono.empty();

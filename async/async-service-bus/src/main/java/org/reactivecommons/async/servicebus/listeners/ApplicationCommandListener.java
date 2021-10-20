@@ -1,10 +1,12 @@
 package org.reactivecommons.async.servicebus.listeners;
 
+import com.azure.messaging.servicebus.ServiceBusClientBuilder;
 import com.azure.messaging.servicebus.ServiceBusReceivedMessage;
 import lombok.extern.java.Log;
 import org.reactivecommons.api.domain.Command;
 import org.reactivecommons.async.api.handlers.registered.RegisteredCommandHandler;
 import org.reactivecommons.async.commons.CommandExecutor;
+import org.reactivecommons.async.commons.DiscardNotifier;
 import org.reactivecommons.async.commons.communications.Message;
 import org.reactivecommons.async.commons.converters.MessageConverter;
 import org.reactivecommons.async.commons.ext.CustomReporter;
@@ -12,7 +14,7 @@ import org.reactivecommons.async.servicebus.HandlerResolver;
 import org.reactivecommons.async.servicebus.ServiceBusMessage;
 import org.reactivecommons.async.servicebus.communucations.ReactiveMessageListener;
 import org.reactivecommons.async.servicebus.communucations.TopologyCreator;
-import reactor.core.publisher.Flux;
+
 import reactor.core.publisher.Mono;
 
 import java.util.function.Function;
@@ -22,6 +24,7 @@ public class ApplicationCommandListener extends GenericMessageListener {
 
     private final MessageConverter messageConverter;
     private HandlerResolver resolver;
+    private final long autoDeleteOnIdle;
 
     public ApplicationCommandListener(String topicName,
                                       ReactiveMessageListener reactiveMessageListener,
@@ -29,22 +32,29 @@ public class ApplicationCommandListener extends GenericMessageListener {
                                       MessageConverter messageConverter,
                                       String subscriptionName,
                                       CustomReporter errorReporter,
-                                      String connectionString,
-                                      boolean withDLQRetry) {
-        super(topicName, subscriptionName, reactiveMessageListener, errorReporter, "command", connectionString, withDLQRetry);
+                                      boolean withDLQRetry,
+                                      int maxDeliveryCount,
+                                      int delayBetweenRetry,
+                                      long messageLockDuration,
+                                      long messageTimeToLive,
+                                      long autoDeleteOnIdle,
+                                      boolean autoAck,
+                                      DiscardNotifier discardNotifier,
+                                      ServiceBusClientBuilder serviceBusClientBuilder) {
+        super(topicName, subscriptionName, reactiveMessageListener, errorReporter, "command"
+                , withDLQRetry, maxDeliveryCount, delayBetweenRetry, messageLockDuration, messageTimeToLive,
+                discardNotifier, serviceBusClientBuilder, autoAck);
         this.resolver = resolver;
         this.messageConverter = messageConverter;
+        this.autoDeleteOnIdle = autoDeleteOnIdle;
     }
 
     protected Mono<Void> setUpBindings(TopologyCreator creator) {
 
         return creator.createTopic(topicName)
-                .then(creator.createSubscription(topicName, subscriptionName, withDLQRetry))
-                .thenMany(Flux.fromIterable(resolver.getCommandHandlers())
-                        .flatMap(listener ->
-                                creator.createRulesubscription(topicName, subscriptionName, listener.getPath())
-                        )
-                )
+                .then(creator.createSubscription(topicName, subscriptionName, withDLQRetry, maxDeliveryCount,
+                        messageLockDuration, messageTimeToLive, autoDeleteOnIdle))
+                .then(creator.createRulesubscription(topicName, subscriptionName, subscriptionName))
                 .then();
     }
 
@@ -58,6 +68,10 @@ public class ApplicationCommandListener extends GenericMessageListener {
     protected Function<Message, Mono<Object>> rawMessageHandler(String executorPath) {
 
         final RegisteredCommandHandler<Object> handler = resolver.getCommandHandler(executorPath);
+
+        if (handler == null) {
+            return message -> Mono.error(new RuntimeException("Handler Not registered for Command: " + executorPath));
+        }
 
         final Class<Object> eventClass = handler.getInputClass();
 

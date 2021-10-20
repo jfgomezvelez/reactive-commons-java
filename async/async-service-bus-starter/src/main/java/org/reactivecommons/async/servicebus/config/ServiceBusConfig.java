@@ -3,7 +3,6 @@ package org.reactivecommons.async.servicebus.config;
 import com.azure.messaging.servicebus.ServiceBusClientBuilder;
 import com.microsoft.azure.servicebus.management.ManagementClient;
 import com.microsoft.azure.servicebus.primitives.ConnectionStringBuilder;
-import com.rabbitmq.client.Connection;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
 import org.reactivecommons.api.domain.Command;
@@ -14,6 +13,7 @@ import org.reactivecommons.async.api.HandlerRegistry;
 import org.reactivecommons.async.api.handlers.registered.RegisteredCommandHandler;
 import org.reactivecommons.async.api.handlers.registered.RegisteredEventListener;
 import org.reactivecommons.async.api.handlers.registered.RegisteredQueryHandler;
+import org.reactivecommons.async.commons.DiscardNotifier;
 import org.reactivecommons.async.commons.communications.Message;
 import org.reactivecommons.async.commons.config.BrokerConfig;
 import org.reactivecommons.async.commons.converters.MessageConverter;
@@ -31,7 +31,6 @@ import org.reactivecommons.async.servicebus.converters.jso.JacksonMessageConvert
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.boot.context.properties.PropertyMapper;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -54,23 +53,22 @@ import java.util.concurrent.ConcurrentMap;
 @Import(BrokerConfigProps.class)
 public class ServiceBusConfig {
 
+    private final AsyncProps asyncProps;
+
     @Value("${spring.application.name}")
     private String appName;
 
     @Bean
-    public ReactiveMessageSender messageSender(BrokerConfigProps props, ServiceBusClientBuilder.ServiceBusSenderClientBuilder serviceBusSenderClientBuilder, MessageConverter messageConverter) {
-        String exchangeName = props.getDomainEventsExchangeName();
-        return new ReactiveMessageSender(serviceBusSenderClientBuilder, messageConverter);
+    public ReactiveMessageSender messageSender(ServiceBusClientBuilder serviceBusClientBuilder, MessageConverter messageConverter) {
+        return new ReactiveMessageSender(serviceBusClientBuilder, messageConverter);
     }
 
     @Bean
-    public ServiceBusClientBuilder.ServiceBusSenderClientBuilder getServiceBusSenderClientBuilder(AzureProps azureProps) {
+    public ServiceBusClientBuilder getServiceBusSenderClientBuilder(AzureProps azureProps) {
         log.info("Creando objeto de ServiceBusClientBuilder...");
-        //String connectionString = "Endpoint=sb://reactivecommons-servicebus-sofka.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=dqaZiNhGjICV4ZFflQIrWwQ5eCftCMGIwSzqIl+Ib/A=";
 
         return new ServiceBusClientBuilder()
-                .connectionString(azureProps.getConnectionString())
-                .sender();
+                .connectionString(azureProps.getConnectionString());
     }
 
     @Bean
@@ -99,7 +97,13 @@ public class ServiceBusConfig {
 //                asyncProps.getFlux().getMaxConcurrency(),
 //                asyncProps.getPrefetchCount());
 
-        return new ReactiveMessageListener(topologyCreator);
+        log.info("getMaxConcurrency " + asyncProps.getFlux().getMaxConcurrency());
+        log.info("getPrefetchCount " + asyncProps.getPrefetchCount());
+
+        return new ReactiveMessageListener(
+                topologyCreator,
+                asyncProps.getFlux().getMaxConcurrency(),
+                asyncProps.getPrefetchCount());
     }
 
     @Bean
@@ -139,12 +143,12 @@ public class ServiceBusConfig {
 
         return new HandlerResolver(queryHandlers, eventListeners, eventNotificationListener,
                 dynamicEventHandlers, commandHandlers) {
-            @Override
-            @SuppressWarnings("unchecked")
-            public <T> RegisteredCommandHandler<T> getCommandHandler(String path) {
-                final RegisteredCommandHandler<T> handler = super.getCommandHandler(path);
-                return handler != null ? handler : new RegisteredCommandHandler<>("", defaultCommandHandler, Object.class);
-            }
+//            @Override
+//            @SuppressWarnings("unchecked")
+//            public <T> RegisteredCommandHandler<T> getCommandHandler(String path) {
+//                final RegisteredCommandHandler<T> handler = super.getCommandHandler(path);
+//                return handler != null ? handler : new RegisteredCommandHandler<>("", defaultCommandHandler, Object.class);
+//            }
         };
     }
 
@@ -212,5 +216,14 @@ public class ServiceBusConfig {
     @ConditionalOnMissingBean
     public BrokerConfig brokerConfig() {
         return new BrokerConfig();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public DiscardNotifier defaultServiceBusDiscardNotifier() {
+        return (message, err) -> {
+            log.info("discarded message.");
+            return Mono.empty();
+        };
     }
 }

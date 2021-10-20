@@ -1,15 +1,10 @@
 package org.reactivecommons.async.servicebus.listeners;
 
+import com.azure.core.amqp.AmqpRetryOptions;
 import com.azure.messaging.servicebus.*;
 import com.azure.messaging.servicebus.models.ServiceBusReceiveMode;
-import com.microsoft.azure.servicebus.ClientSettings;
-import com.microsoft.azure.servicebus.QueueClient;
-import com.microsoft.azure.servicebus.ReceiveMode;
-import com.microsoft.azure.servicebus.primitives.RetryPolicy;
-import com.microsoft.azure.servicebus.security.TokenProvider;
 import lombok.extern.java.Log;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
@@ -22,55 +17,63 @@ public class Listener {
     private final String topicName;
     private final String subscriptionName;
     protected final Consumer<ServiceBusReceivedMessageContext> processMessage;
-    private final String connectionString;
     private final int prefetchCount;
+    private ServiceBusReceiverAsyncClient receiver;
+    private ServiceBusClientBuilder serviceBusClientBuilder;
 
-    public Listener(String topicName, String subscriptionName, Consumer<ServiceBusReceivedMessageContext> processMessage, String connectionString) {
+    public Listener(String topicName, String subscriptionName, Consumer<ServiceBusReceivedMessageContext> processMessage, ServiceBusClientBuilder serviceBusClientBuilder) {
         this.topicName = topicName;
         this.subscriptionName = subscriptionName;
         this.processMessage = processMessage;
-        this.connectionString = connectionString;
         this.prefetchCount = 0;
+        this.serviceBusClientBuilder = serviceBusClientBuilder;
     }
 
-    public Listener(String topicName, String subscriptionName, String connectionString, int prefetchCount) {
+    public Listener(String topicName, String subscriptionName, int prefetchCount, ServiceBusClientBuilder serviceBusClientBuilder) {
         this.topicName = topicName;
         this.subscriptionName = subscriptionName;
         this.processMessage = null;
-        this.connectionString = connectionString;
         this.prefetchCount = prefetchCount;
+        this.serviceBusClientBuilder = serviceBusClientBuilder;
     }
 
-    public Mono<Void> start() {
+    public void startSync() {
 
         CountDownLatch countdownLatch = new CountDownLatch(1);
 
-        ServiceBusProcessorClient processorClient = new ServiceBusClientBuilder()
-                .connectionString(connectionString)
+        ServiceBusProcessorClient processorClient = serviceBusClientBuilder
                 .processor()
                 .topicName(topicName)
                 .subscriptionName(subscriptionName)
                 .processMessage(processMessage)
                 .prefetchCount(prefetchCount)
+                .maxConcurrentCalls(8)
                 .processError(context -> processError(context, countdownLatch))
                 .buildProcessorClient();
 
         System.out.printf("Starting the processor topic %s, subscription %s", this.topicName, this.subscriptionName);
         processorClient.start();
-        return Mono.empty();
     }
 
-    public Flux<ServiceBusReceivedMessage> startAsync() {
+    public Flux<ServiceBusReceivedMessage> startAsync(ServiceBusReceiveMode receiveMode) {
 
-        ServiceBusReceiverAsyncClient receiver = new ServiceBusClientBuilder()
-                .connectionString(connectionString)
+        AmqpRetryOptions amqpRetryOptions = new AmqpRetryOptions();
+        amqpRetryOptions.setMaxRetries(3);
+        amqpRetryOptions.setDelay(Duration.ofSeconds(1));
+        this.receiver = serviceBusClientBuilder
+                //.retryOptions(amqpRetryOptions)
                 .receiver()
                 .topicName(topicName)
+                .prefetchCount(prefetchCount)
+                .receiveMode(receiveMode)
                 .subscriptionName(subscriptionName)
-                //.receiveMode(ServiceBusReceiveMode.)
                 .buildAsyncClient();
 
         return receiver.receiveMessages();
+    }
+
+    public ServiceBusReceiverAsyncClient getServiceBusReceiverAsyncClient() {
+        return this.receiver;
     }
 
     private void processError(ServiceBusErrorContext context, CountDownLatch countdownLatch) {

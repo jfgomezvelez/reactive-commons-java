@@ -1,13 +1,14 @@
 package org.reactivecommons.async.servicebus.config;
 
+import com.azure.messaging.servicebus.ServiceBusClientBuilder;
 import lombok.RequiredArgsConstructor;
+import org.reactivecommons.async.commons.DiscardNotifier;
 import org.reactivecommons.async.commons.converters.MessageConverter;
 import org.reactivecommons.async.commons.ext.CustomReporter;
 import org.reactivecommons.async.servicebus.HandlerResolver;
 import org.reactivecommons.async.servicebus.communucations.ReactiveMessageListener;
 import org.reactivecommons.async.servicebus.communucations.ReactiveMessageSender;
 import org.reactivecommons.async.servicebus.config.props.AsyncProps;
-import org.reactivecommons.async.servicebus.config.props.AzureProps;
 import org.reactivecommons.async.servicebus.listeners.ApplicationQueryListener;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -25,15 +26,15 @@ public class QueryListenerConfig {
 
     private final AsyncProps asyncProps;
 
-    private final AzureProps azureProps;
-
     @Bean
     public ApplicationQueryListener queryListener(
             ReactiveMessageSender reactiveMessageSender,
             ReactiveMessageListener listener,
             HandlerResolver resolver,
             MessageConverter converter,
-            CustomReporter errorReporter) {
+            CustomReporter errorReporter,
+            DiscardNotifier discardNotifier,
+            ServiceBusClientBuilder serviceBusClientBuilder) {
 
         final ApplicationQueryListener applicationQueryListener = new ApplicationQueryListener(
                 reactiveMessageSender,
@@ -44,8 +45,14 @@ public class QueryListenerConfig {
                 asyncProps.getGlobal().getExchange(),
                 appName + ".query",
                 errorReporter,
-                azureProps.getConnectionString(),
-                asyncProps.getWithDLQRetry());
+                asyncProps.getWithDLQRetry(),
+                asyncProps.getDirect().getMaxDeliveryCount(),
+                asyncProps.getDirect().getDelayBetweenRetry(),
+                asyncProps.getDirect().getMessageLockDuration(),
+                asyncProps.getDirect().getMessageTimeToLive(),
+                asyncProps.getDirect().getAutoDeleteOnIdle(),
+                asyncProps.getDirect().getWithAutoACKforQuery(),
+                discardNotifier, serviceBusClientBuilder);
 
         applicationQueryListener.startListener();
 

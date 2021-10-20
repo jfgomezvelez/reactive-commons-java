@@ -1,7 +1,12 @@
 package org.reactivecommons.async.servicebus.listeners;
 
+
+import com.azure.messaging.servicebus.ServiceBusClientBuilder;
 import com.azure.messaging.servicebus.ServiceBusReceivedMessage;
+import com.azure.messaging.servicebus.ServiceBusReceiverAsyncClient;
+import com.azure.messaging.servicebus.models.ServiceBusReceiveMode;
 import lombok.extern.java.Log;
+import org.reactivecommons.async.commons.DiscardNotifier;
 import org.reactivecommons.async.commons.communications.Message;
 import org.reactivecommons.async.commons.ext.CustomReporter;
 import org.reactivecommons.async.commons.utils.LoggerSubscriber;
@@ -21,6 +26,8 @@ import java.util.logging.Level;
 
 import static java.lang.String.format;
 import static java.util.function.Function.identity;
+import static org.reactivecommons.async.commons.Headers.CORRELATION_ID;
+import static org.reactivecommons.async.commons.Headers.REPLY_ID;
 import static reactor.core.publisher.Mono.defer;
 
 @Log
@@ -28,15 +35,21 @@ public abstract class GenericMessageListener {
 
     protected final String subscriptionName;
     protected final String topicName;
+    protected final boolean isAutoACK;
     private final ReactiveMessageListener reactiveMessageListener;
-    private final Scheduler scheduler = Schedulers.newParallel(getClass().getSimpleName(), 12);
+    private final Scheduler scheduler = Schedulers.newParallel(getClass().getSimpleName(), 100);
     private final ConcurrentHashMap<String, Function<Message, Mono<Object>>> handlers = new ConcurrentHashMap<>();
     private final CustomReporter customReporter;
     private final String objectType;
     private volatile Flux<ServiceBusReceivedMessage> messageFlux;
-    private final String connectionString;
     protected final boolean withDLQRetry;
-
+    protected final int maxDeliveryCount;
+    private final int delayBetweenRetry;
+    protected final long messageLockDuration;
+    protected final long messageTimeToLive;
+    private Listener listener;
+    private DiscardNotifier discardNotifier;
+    private ServiceBusClientBuilder serviceBusClientBuilder;
 
     public GenericMessageListener(
             String topicName,
@@ -44,15 +57,27 @@ public abstract class GenericMessageListener {
             ReactiveMessageListener reactiveMessageListener,
             CustomReporter customReporter,
             String objectType,
-            String connectionString,
-            boolean withDLQRetry) {
+            boolean withDLQRetry,
+            int maxDeliveryCount,
+            int delayBetweenRetry,
+            long messageLockDuration,
+            long messageTimeToLive,
+            DiscardNotifier discardNotifier,
+            ServiceBusClientBuilder serviceBusClientBuilder,
+            boolean isAutoACK) {
         this.topicName = topicName;
         this.subscriptionName = subscriptionName;
         this.reactiveMessageListener = reactiveMessageListener;
         this.customReporter = customReporter;
         this.objectType = objectType;
-        this.connectionString = connectionString;
         this.withDLQRetry = withDLQRetry;
+        this.maxDeliveryCount = maxDeliveryCount;
+        this.delayBetweenRetry = delayBetweenRetry;
+        this.messageLockDuration = messageLockDuration;
+        this.discardNotifier = discardNotifier;
+        this.messageTimeToLive = messageTimeToLive;
+        this.serviceBusClientBuilder = serviceBusClientBuilder;
+        this.isAutoACK = isAutoACK;
     }
 
     public void startListener() {
@@ -63,11 +88,14 @@ public abstract class GenericMessageListener {
             log.log(Level.INFO, "ATTENTION! Using infinite fast retries as Retry Strategy");
         }
 
+        this.listener = new Listener(topicName, subscriptionName, reactiveMessageListener.getPrefetchCount(), serviceBusClientBuilder);
+
         this.messageFlux = setUpBindings(reactiveMessageListener.getTopologyCreator())
-                .thenMany(createListenerAsync(topicName, subscriptionName))
+                .thenMany(listener.startAsync(isAutoACK ? ServiceBusReceiveMode.RECEIVE_AND_DELETE : ServiceBusReceiveMode.PEEK_LOCK ))
                 .transform(this::consumeFaultTolerant);
 
         onTerminate();
+
     }
 
     private void onTerminate() {
@@ -76,23 +104,53 @@ public abstract class GenericMessageListener {
     }
 
     private Flux<ServiceBusReceivedMessage> consumeFaultTolerant(Flux<ServiceBusReceivedMessage> messageFlux) {
-        return messageFlux.flatMap(msj -> {
-            final Instant init = Instant.now();
-            return handle(msj, init);
-                    //.doOnSuccess(ServiceBusReceivedMessage::)
-                    //.onErrorResume(err -> requeueOrAck(msj, err, init));
-        }, reactiveMessageListener.getMaxConcurrency());
+
+        log.info("Concurrencia actual : " + reactiveMessageListener.getMaxConcurrency());
+
+        return messageFlux
+                .flatMap(message -> {
+                    final Instant init = Instant.now();
+                    return handle(message, init)
+                            .flatMap(ms -> {
+                                        if (!isAutoACK) {
+                                            return listener.getServiceBusReceiverAsyncClient()
+                                                    .complete(message)
+                                                    .thenReturn(ms);
+                                        }
+                                        return Mono.just(ms);
+                                    }
+                            )
+                            .onErrorResume(err -> requeueOrDiscard(message, err));
+                }, reactiveMessageListener.getMaxConcurrency());
+    }
+
+    private Mono<ServiceBusReceivedMessage> requeueOrDiscard(ServiceBusReceivedMessage msj, Throwable err) {
+
+        if (isAutoACK)
+            return Mono.just(msj);
+
+        final ServiceBusReceiverAsyncClient serviceBusReceiverAsyncClient = listener.getServiceBusReceiverAsyncClient();
+        log.info("Reintento ".concat(String.valueOf(msj.getDeliveryCount())).concat(" Con delayBetweenRetry ".concat(String.valueOf(delayBetweenRetry))));
+
+
+        return Mono.just(msj)
+                .delayElement(Duration.ofSeconds(delayBetweenRetry))
+                .flatMap(resul -> {
+                    if (msj.getDeliveryCount() < (maxDeliveryCount - 1)) {
+                        return serviceBusReceiverAsyncClient.abandon(msj);
+                    } else {
+                        return serviceBusReceiverAsyncClient.abandon(msj).then(discardNotifier.notifyDiscard(ServiceBusMessage.fromDelivery(msj), err));
+                    }
+                })
+                .onErrorResume(error -> {
+                    log.info("Error in requeueOrAck ".concat(error.getMessage()));
+                    return Mono.empty();
+                })
+                .thenReturn(msj);
     }
 
     protected Mono<Void> setUpBindings(TopologyCreator creator) {
         return Mono.empty();
-    }
-
-    private Flux<ServiceBusReceivedMessage> createListenerAsync(String topicName, String subscriptionName) {
-
-        Listener listener = new Listener(topicName, subscriptionName, connectionString, reactiveMessageListener.getPrefetchCount());
-
-        return listener.startAsync();
     }
 
     private Mono<ServiceBusReceivedMessage> handle(ServiceBusReceivedMessage context, Instant initTime) {
@@ -104,7 +162,17 @@ public abstract class GenericMessageListener {
 
             final Message message = ServiceBusMessage.fromDelivery(context);
 
-            System.out.printf("Processing message. Session: %s, Sequence #: %s. Contents: %s%n", context.getMessageId(),
+            String replyID = "SIN_".concat(REPLY_ID);
+            if (message.getProperties().getHeaders().containsKey(REPLY_ID))
+                replyID = message.getProperties().getHeaders().get(REPLY_ID).toString();
+
+            String correlationID = "SIN_".concat(CORRELATION_ID);
+            if (message.getProperties().getHeaders().containsKey(REPLY_ID))
+                correlationID = message.getProperties().getHeaders().get(CORRELATION_ID).toString();
+
+            log.info(String.format("[DebPerf][RC]MENSAJE-RECIBIDO] [%s] [%s]", replyID, correlationID));
+
+            System.out.printf("Processing message. Session: %s, Sequence #: %s. Contents: %s%n", context.getSessionId(),
                     context.getSequenceNumber(), context.getBody());
 
             return defer(() -> handler.apply(message))

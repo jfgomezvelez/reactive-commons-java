@@ -5,6 +5,8 @@ import reactor.core.publisher.Mono;
 
 public interface DiscardNotifier {
 
-    Mono<Void> notifyDiscard(Message message);
+    //Mono<Void> notifyDiscard(Message message);
+
+    Mono<Void> notifyDiscard(Message message,Throwable err );
 
 }

@@ -1,6 +1,7 @@
 package org.reactivecommons.async.servicebus;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.java.Log;
 import org.reactivecommons.api.domain.Command;
 import org.reactivecommons.async.api.AsyncQuery;
 import org.reactivecommons.async.api.DirectAsyncGateway;
@@ -21,6 +22,7 @@ import static org.reactivecommons.async.commons.Headers.*;
 import static org.reactivecommons.async.commons.Headers.SERVED_QUERY_ID;
 import static reactor.core.publisher.Mono.fromCallable;
 
+@Log
 @RequiredArgsConstructor
 public class ServiceBusDirectAsyncGateway implements DirectAsyncGateway {
 
@@ -29,11 +31,12 @@ public class ServiceBusDirectAsyncGateway implements DirectAsyncGateway {
     private final ReactiveReplyRouter router;
     private final MessageConverter converter;
     private final String topicName;
+    private final String topicGlobalName;
 
 
     @Override
     public <T> Mono<Void> sendCommand(Command<T> command, String targetName) {
-        return sender.publish(command, topicName, command.getName());
+        return sender.publishAsync(command, topicName, targetName);
     }
 
     @Override
@@ -43,7 +46,10 @@ public class ServiceBusDirectAsyncGateway implements DirectAsyncGateway {
 
         final Mono<R> replyHolder = router.register(correlationID)
                 .timeout(config.getReplyTimeout())
-                .doOnError(TimeoutException.class, e -> router.deregister(correlationID))
+                .doOnError(TimeoutException.class, e -> {
+                    log.warning(String.format("TimeoutException : [%s] [%s]",config.getReplyTimeout(), correlationID));
+                    router.deregister(correlationID);
+                })
                 .flatMap(s -> fromCallable(() -> converter.readValue(s, type)));
 
         Map<String, Object> headers = new HashMap<>();
@@ -51,7 +57,10 @@ public class ServiceBusDirectAsyncGateway implements DirectAsyncGateway {
         headers.put(SERVED_QUERY_ID, query.getResource());
         headers.put(CORRELATION_ID, correlationID);
 
-        return sender.publishAsync(query, topicName, query.getResource(), headers).then(replyHolder);
+       log.info(String.format("[DebPerf][RC][ENVIADO-QUERY] [%s] [%s] [%s] [%s] [%s]", query.getQueryData(), targetName + ".query", config.getRoutingKey(), correlationID, config.getRoutingKey()));
+
+        return sender.publishAsync(query, topicName, targetName + ".query", headers)
+                .then(replyHolder);
     }
 
     @Override
@@ -64,6 +73,6 @@ public class ServiceBusDirectAsyncGateway implements DirectAsyncGateway {
             headers.put(COMPLETION_ONLY_SIGNAL, TRUE.toString());
         }
 
-        return sender.publishAsync(response, "globalReply", from.getReplyID(), headers);
+        return sender.publishAsync(response, topicGlobalName, from.getReplyID(), headers);
     }
 }

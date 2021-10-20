@@ -1,6 +1,8 @@
 package org.reactivecommons.async.servicebus.config;
 
+import com.azure.messaging.servicebus.ServiceBusClientBuilder;
 import lombok.RequiredArgsConstructor;
+import org.reactivecommons.async.commons.DiscardNotifier;
 import org.reactivecommons.async.commons.converters.MessageConverter;
 import org.reactivecommons.async.commons.ext.CustomReporter;
 import org.reactivecommons.async.servicebus.HandlerResolver;
@@ -23,13 +25,13 @@ public class CommandListenersConfig {
 
     private final AsyncProps asyncProps;
 
-    private final AzureProps azureProps;
-
     @Bean
     public ApplicationCommandListener applicationCommandListener(ReactiveMessageListener listener,
                                                                  HandlerResolver resolver,
                                                                  MessageConverter converter,
-                                                                 CustomReporter errorReporter) {
+                                                                 CustomReporter errorReporter,
+                                                                 DiscardNotifier discardNotifier,
+                                                                 ServiceBusClientBuilder serviceBusClientBuilder) {
         ApplicationCommandListener applicationCommandListener = new ApplicationCommandListener(
                 asyncProps.getDirect().getExchange(),
                 listener,
@@ -37,8 +39,15 @@ public class CommandListenersConfig {
                 converter,
                 appName,
                 errorReporter,
-                azureProps.getConnectionString(),
-                asyncProps.getWithDLQRetry()
+                asyncProps.getWithDLQRetry(),
+                asyncProps.getDirect().getMaxDeliveryCount(),
+                asyncProps.getDirect().getDelayBetweenRetry(),
+                asyncProps.getDirect().getMessageLockDuration(),
+                asyncProps.getDirect().getMessageTimeToLive(),
+                asyncProps.getDirect().getAutoDeleteOnIdle(),
+                asyncProps.getDirect().getWithAutoACKforCommand(),
+                discardNotifier,
+                serviceBusClientBuilder
         );
 
         applicationCommandListener.startListener();

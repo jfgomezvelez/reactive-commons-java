@@ -13,4 +13,18 @@ public class DirectProps {
 
     private Optional<Integer> maxLengthBytes = Optional.empty();
 
+    private Integer maxDeliveryCount = 10;
+
+    private Integer delayBetweenRetry = 5;
+
+    private Long messageLockDuration = 60L;
+
+    private Long messageTimeToLive = 10675199L;
+
+    private Long autoDeleteOnIdle = 10675199L;
+
+    private Boolean withAutoACKforCommand = false;
+
+    private Boolean withAutoACKforQuery = false;
+
 }

@@ -184,7 +184,7 @@ public abstract class GenericMessageListener {
             if (retryNumber >= maxRetries) {
                 logError(err, msj, FallbackStrategy.DEFINITIVE_DISCARD);
                 return discardNotifier
-                        .notifyDiscard(rabbitMessage)
+                        .notifyDiscard(rabbitMessage, err)
                         .doOnSuccess(_a -> msj.ack()).thenReturn(msj);
             } else {
                 logError(err, msj, FallbackStrategy.RETRY_DLQ);

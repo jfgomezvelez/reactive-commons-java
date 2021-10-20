@@ -1,8 +1,11 @@
 package org.reactivecommons.async.servicebus.listeners;
 
+import com.azure.core.amqp.models.AmqpAnnotatedMessage;
+import com.azure.messaging.servicebus.ServiceBusClientBuilder;
 import com.azure.messaging.servicebus.ServiceBusReceivedMessage;
 import lombok.extern.java.Log;
 import org.reactivecommons.async.api.handlers.registered.RegisteredQueryHandler;
+import org.reactivecommons.async.commons.DiscardNotifier;
 import org.reactivecommons.async.commons.QueryExecutor;
 import org.reactivecommons.async.commons.communications.Message;
 import org.reactivecommons.async.commons.converters.MessageConverter;
@@ -11,15 +14,13 @@ import org.reactivecommons.async.servicebus.HandlerResolver;
 import org.reactivecommons.async.servicebus.communucations.ReactiveMessageListener;
 import org.reactivecommons.async.servicebus.communucations.ReactiveMessageSender;
 import org.reactivecommons.async.servicebus.communucations.TopologyCreator;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.HashMap;
 import java.util.function.Function;
 
 import static java.util.Optional.ofNullable;
-import static org.reactivecommons.async.commons.Headers.CORRELATION_ID;
-import static org.reactivecommons.async.commons.Headers.REPLY_ID;
+import static org.reactivecommons.async.commons.Headers.*;
 
 @Log
 public class ApplicationQueryListener extends GenericMessageListener {
@@ -28,34 +29,41 @@ public class ApplicationQueryListener extends GenericMessageListener {
     private final MessageConverter converter;
     private final ReactiveMessageSender reactiveMessageSender;
     private final String replyTopicName;
+    private final long autoDeleteOnIdle;
 
-    public ApplicationQueryListener(
-            ReactiveMessageSender reactiveMessageSender,
-            ReactiveMessageListener reactiveMessageListener,
-            HandlerResolver resolver,
-            MessageConverter converter,
-            String directTopicName,
-            String replyTopicName,
-            String subscriptionName,
-            CustomReporter customReporter,
-            String connectionString,
-            boolean withDLQRetry) {
-        super(directTopicName, subscriptionName, reactiveMessageListener, customReporter, "query", connectionString, withDLQRetry);
+    public ApplicationQueryListener(ReactiveMessageSender reactiveMessageSender,
+                                    ReactiveMessageListener reactiveMessageListener,
+                                    HandlerResolver resolver,
+                                    MessageConverter converter,
+                                    String directTopicName,
+                                    String replyTopicName,
+                                    String subscriptionName,
+                                    CustomReporter customReporter,
+                                    boolean withDLQRetry,
+                                    int maxDeliveryCount,
+                                    int delayBetweenRetry,
+                                    long messageLockDuration,
+                                    long messageTimeToLive,
+                                    long autoDeleteOnIdle,
+                                    boolean autoACK,
+                                    DiscardNotifier discardNotifier,
+                                    ServiceBusClientBuilder serviceBusClientBuilder) {
+        super(directTopicName, subscriptionName, reactiveMessageListener, customReporter, "query"
+                , withDLQRetry, maxDeliveryCount, delayBetweenRetry, messageLockDuration, messageTimeToLive,
+                discardNotifier, serviceBusClientBuilder, autoACK);
         this.resolver = resolver;
         this.converter = converter;
         this.reactiveMessageSender = reactiveMessageSender;
         this.replyTopicName = replyTopicName;
+        this.autoDeleteOnIdle = autoDeleteOnIdle;
     }
 
     protected Mono<Void> setUpBindings(TopologyCreator creator) {
 
         return creator.createTopic(topicName)
-                .then(creator.createSubscription(topicName, subscriptionName, withDLQRetry))
-                .thenMany(Flux.fromIterable(resolver.getQueryHandlers())
-                        .flatMap(listener ->
-                                creator.createRulesubscription(topicName, subscriptionName, listener.getPath())
-                        )
-                )
+                .then(creator.createSubscription(topicName, subscriptionName, withDLQRetry, maxDeliveryCount,
+                        messageLockDuration, messageTimeToLive, autoDeleteOnIdle))
+                .then(creator.createRulesubscription(topicName, subscriptionName, subscriptionName))
                 .then();
     }
 
@@ -73,9 +81,25 @@ public class ApplicationQueryListener extends GenericMessageListener {
         });
     }
 
+    private Mono<Void> reply(Message msg, Object object) {
+
+        final String replyID = msg.getProperties().getHeaders().get(REPLY_ID).toString();
+
+        final String correlationID = msg.getProperties().getHeaders().get(CORRELATION_ID).toString();
+
+        final HashMap<String, Object> headers = new HashMap<>();
+
+        headers.put(CORRELATION_ID, correlationID);
+
+        log.info(String.format("[DebPerf][RC][ENVIADO-RESPUESTA-QUERY] [%s] [%s]", replyID, correlationID));
+
+        return reactiveMessageSender.publishAsync(object, replyTopicName, replyID, headers);
+    }
+
     @Override
     protected String getExecutorPath(ServiceBusReceivedMessage context) {
-        return context.getTo();
+        AmqpAnnotatedMessage message = context.getRawAmqpMessage();
+        return message.getApplicationProperties().get(SERVED_QUERY_ID).toString();
     }
 
     @Override
@@ -93,19 +117,8 @@ public class ApplicationQueryListener extends GenericMessageListener {
 
         final QueryExecutor<Object, Object> executor = new QueryExecutor<>(handler.getHandler(), messageConverter);
 
+        log.info("[DebPerf][RC][PROCESANDO-SOLICITUD-QUERY]");
+
         return executor::execute;
-    }
-
-    private Mono<Void> reply(Message msg, Object object) {
-
-        final String replyID = msg.getProperties().getHeaders().get(REPLY_ID).toString();
-
-        final String correlationID = msg.getProperties().getHeaders().get(CORRELATION_ID).toString();
-
-        final HashMap<String, Object> headers = new HashMap<>();
-
-        headers.put(CORRELATION_ID, correlationID);
-
-        return reactiveMessageSender.publishAsync(object, replyTopicName, replyID, headers);
     }
 }
