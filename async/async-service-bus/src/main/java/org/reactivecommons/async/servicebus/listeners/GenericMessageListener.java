@@ -91,7 +91,7 @@ public abstract class GenericMessageListener {
         this.listener = new Listener(topicName, subscriptionName, reactiveMessageListener.getPrefetchCount(), serviceBusClientBuilder);
 
         this.messageFlux = setUpBindings(reactiveMessageListener.getTopologyCreator())
-                .thenMany(listener.startAsync(isAutoACK ? ServiceBusReceiveMode.RECEIVE_AND_DELETE : ServiceBusReceiveMode.PEEK_LOCK ))
+                .thenMany(listener.startAsync(isAutoACK))
                 .transform(this::consumeFaultTolerant);
 
         onTerminate();
@@ -139,7 +139,12 @@ public abstract class GenericMessageListener {
                     if (msj.getDeliveryCount() < (maxDeliveryCount - 1)) {
                         return serviceBusReceiverAsyncClient.abandon(msj);
                     } else {
-                        return serviceBusReceiverAsyncClient.abandon(msj).then(discardNotifier.notifyDiscard(ServiceBusMessage.fromDelivery(msj), err));
+                        return discardNotifier.notifyDiscard(ServiceBusMessage.fromDelivery(msj), err)
+                                .then(serviceBusReceiverAsyncClient.complete(msj))
+                                .onErrorResume(error -> {
+                                    log.info("Error in discardNotifier ".concat(error.getMessage()));
+                                    return serviceBusReceiverAsyncClient.abandon(msj);
+                                });
                     }
                 })
                 .onErrorResume(error -> {

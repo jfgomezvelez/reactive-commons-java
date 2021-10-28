@@ -25,6 +25,6 @@ public class DirectProps {
 
     private Boolean withAutoACKforCommand = false;
 
-    private Boolean withAutoACKforQuery = false;
+    private Boolean withAutoACKforQuery = true;
 
 }

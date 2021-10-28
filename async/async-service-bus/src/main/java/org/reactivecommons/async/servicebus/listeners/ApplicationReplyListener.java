@@ -78,7 +78,7 @@ public class ApplicationReplyListener {
 
         Listener listener = new Listener(topicName, subscriptionName, reactiveMessageListener.getPrefetchCount(), serviceBusClientBuilder);
 
-        return listener.startAsync(ServiceBusReceiveMode.RECEIVE_AND_DELETE);
+        return listener.startAsync(true);
     }
 
     private void receiver(ServiceBusReceivedMessage serviceBusReceivedMessage) {

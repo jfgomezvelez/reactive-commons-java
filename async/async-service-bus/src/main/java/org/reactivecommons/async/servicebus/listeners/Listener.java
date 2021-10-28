@@ -1,12 +1,10 @@
 package org.reactivecommons.async.servicebus.listeners;
 
-import com.azure.core.amqp.AmqpRetryOptions;
 import com.azure.messaging.servicebus.*;
 import com.azure.messaging.servicebus.models.ServiceBusReceiveMode;
 import lombok.extern.java.Log;
 import reactor.core.publisher.Flux;
 
-import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -55,19 +53,21 @@ public class Listener {
         processorClient.start();
     }
 
-    public Flux<ServiceBusReceivedMessage> startAsync(ServiceBusReceiveMode receiveMode) {
+    public Flux<ServiceBusReceivedMessage> startAsync(boolean isAutoACK) {
 
-        AmqpRetryOptions amqpRetryOptions = new AmqpRetryOptions();
-        amqpRetryOptions.setMaxRetries(3);
-        amqpRetryOptions.setDelay(Duration.ofSeconds(1));
-        this.receiver = serviceBusClientBuilder
-                //.retryOptions(amqpRetryOptions)
-                .receiver()
+        ServiceBusClientBuilder.ServiceBusReceiverClientBuilder serviceBusReceiverClientBuilder = serviceBusClientBuilder.receiver()
                 .topicName(topicName)
                 .prefetchCount(prefetchCount)
-                .receiveMode(receiveMode)
-                .subscriptionName(subscriptionName)
-                .buildAsyncClient();
+                .receiveMode(ServiceBusReceiveMode.RECEIVE_AND_DELETE)
+                .subscriptionName(subscriptionName);
+
+        if(!isAutoACK){
+            serviceBusReceiverClientBuilder = serviceBusReceiverClientBuilder
+                    .receiveMode(ServiceBusReceiveMode.PEEK_LOCK)
+                    .disableAutoComplete();
+        }
+
+        this.receiver = serviceBusReceiverClientBuilder.buildAsyncClient();
 
         return receiver.receiveMessages();
     }
