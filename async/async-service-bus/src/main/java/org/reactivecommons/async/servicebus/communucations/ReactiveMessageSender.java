@@ -1,5 +1,7 @@
 package org.reactivecommons.async.servicebus.communucations;
 
+import com.azure.core.amqp.AmqpRetryMode;
+import com.azure.core.amqp.AmqpRetryOptions;
 import com.azure.messaging.servicebus.ServiceBusClientBuilder;
 import com.azure.messaging.servicebus.ServiceBusMessage;
 import com.azure.messaging.servicebus.ServiceBusSenderAsyncClient;
@@ -9,6 +11,7 @@ import org.reactivecommons.async.commons.communications.Message;
 import org.reactivecommons.async.commons.converters.MessageConverter;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -25,6 +28,7 @@ public class ReactiveMessageSender {
         Message message = messageConverter.toMessage(object);
 
         ServiceBusSenderAsyncClient senderClient = serviceBusClientBuilder
+                .retryOptions(createAmqpRetryOptions())
                 .sender()
                 .topicName(topicName)
                 .buildAsyncClient();
@@ -52,6 +56,7 @@ public class ReactiveMessageSender {
         String destinationTopic = serviceBusMessage.getApplicationProperties().get(DESTINATION_TOPIC).toString();
 
         ServiceBusSenderAsyncClient senderClient = serviceBusClientBuilder
+                .retryOptions(createAmqpRetryOptions())
                 .sender()
                 .topicName(destinationTopic)
                 .buildAsyncClient();
@@ -64,6 +69,7 @@ public class ReactiveMessageSender {
         Message message = messageConverter.toMessage(object);
 
         ServiceBusSenderAsyncClient senderClient = serviceBusClientBuilder
+                .retryOptions(createAmqpRetryOptions())
                 .sender()
                 .topicName(topicName)
                 .buildAsyncClient();
@@ -87,5 +93,13 @@ public class ReactiveMessageSender {
         log.info(String.format("[DebPerf][RC][ENVIAND0-MENSAJE] [%s] [%s]", ruleName, topicName));
 
         return senderClient.sendMessage(serviceBusMessage).doOnNext(resultado -> log.info(String.format("[DebPerf][RC][MENSAJE-ENVIADO] [%s] [%s]", ruleName, topicName)));
+    }
+
+    private AmqpRetryOptions createAmqpRetryOptions(){
+        AmqpRetryOptions amqpRetryOptions = new AmqpRetryOptions();
+        amqpRetryOptions.setMaxRetries(86400000);
+        amqpRetryOptions.setMaxDelay(Duration.ofHours(24));
+        amqpRetryOptions.setTryTimeout(Duration.ofSeconds(5));
+        return amqpRetryOptions;
     }
 }

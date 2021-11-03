@@ -1,13 +1,17 @@
 package org.reactivecommons.async.servicebus.listeners;
 
+import com.azure.core.amqp.AmqpRetryMode;
+import com.azure.core.amqp.AmqpRetryOptions;
 import com.azure.messaging.servicebus.*;
 import com.azure.messaging.servicebus.models.ServiceBusReceiveMode;
 import lombok.extern.java.Log;
 import reactor.core.publisher.Flux;
 
+import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.logging.Level;
 
 @Log
 public class Listener {
@@ -55,13 +59,20 @@ public class Listener {
 
     public Flux<ServiceBusReceivedMessage> startAsync(boolean isAutoACK) {
 
-        ServiceBusClientBuilder.ServiceBusReceiverClientBuilder serviceBusReceiverClientBuilder = serviceBusClientBuilder.receiver()
+        AmqpRetryOptions amqpRetryOptions = new AmqpRetryOptions();
+        amqpRetryOptions.setMaxRetries(86400000);
+        amqpRetryOptions.setMaxDelay(Duration.ofHours(24));
+        amqpRetryOptions.setTryTimeout(Duration.ofSeconds(5));
+
+        ServiceBusClientBuilder.ServiceBusReceiverClientBuilder serviceBusReceiverClientBuilder = serviceBusClientBuilder
+                .retryOptions(amqpRetryOptions)
+                .receiver()
                 .topicName(topicName)
                 .prefetchCount(prefetchCount)
                 .receiveMode(ServiceBusReceiveMode.RECEIVE_AND_DELETE)
                 .subscriptionName(subscriptionName);
 
-        if(!isAutoACK){
+        if (!isAutoACK) {
             serviceBusReceiverClientBuilder = serviceBusReceiverClientBuilder
                     .receiveMode(ServiceBusReceiveMode.PEEK_LOCK)
                     .disableAutoComplete();
@@ -69,7 +80,11 @@ public class Listener {
 
         this.receiver = serviceBusReceiverClientBuilder.buildAsyncClient();
 
-        return receiver.receiveMessages();
+        return receiver.receiveMessages()
+                .onErrorResume(error -> {
+                    log.log(Level.SEVERE,"Error in startAsync unrecoverable ".concat(error.getMessage()), error);
+                    return Flux.empty();
+                });
     }
 
     public ServiceBusReceiverAsyncClient getServiceBusReceiverAsyncClient() {
