@@ -8,8 +8,8 @@ dependencies {
     api project(":domain-events-api")
     api project(":async-commons")
 
-    implementation 'com.azure:azure-core:1.21.0'
-    implementation 'com.azure:azure-messaging-servicebus:7.4.2'
+    implementation 'com.azure:azure-core:1.22.0'
+    implementation 'com.azure:azure-messaging-servicebus:7.5.0'
     implementation 'com.azure.resourcemanager:azure-resourcemanager:2.8.0'
     implementation group: 'com.microsoft.azure', name: 'azure-servicebus', version: '3.6.5'
 
