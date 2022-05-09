@@ -1,6 +1,5 @@
 package org.reactivecommons.async.servicebus.config;
 
-import com.azure.messaging.servicebus.ServiceBusClientBuilder;
 import com.microsoft.azure.servicebus.management.ManagementClient;
 import com.microsoft.azure.servicebus.primitives.ConnectionStringBuilder;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +27,7 @@ import org.reactivecommons.async.servicebus.config.props.AsyncProps;
 import org.reactivecommons.async.servicebus.config.props.AzureProps;
 import org.reactivecommons.async.servicebus.config.props.BrokerConfigProps;
 import org.reactivecommons.async.servicebus.converters.jso.JacksonMessageConverter;
+import org.reactivecommons.async.servicebus.communucations.ManagementServiceBusClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -59,16 +59,15 @@ public class ServiceBusConfig {
     private String appName;
 
     @Bean
-    public ReactiveMessageSender messageSender(ServiceBusClientBuilder serviceBusClientBuilder, MessageConverter messageConverter) {
-        return new ReactiveMessageSender(serviceBusClientBuilder, messageConverter);
+    public ReactiveMessageSender messageSender(ManagementServiceBusClient serviceBusClientBuilder, MessageConverter messageConverter) {
+        return new ReactiveMessageSender(serviceBusClientBuilder.getInstante(), messageConverter);
     }
 
     @Bean
-    public ServiceBusClientBuilder getServiceBusSenderClientBuilder(AzureProps azureProps) {
+    public ManagementServiceBusClient getServiceBusSenderClientBuilder(AzureProps azureProps) {
         log.info("Creando objeto de ServiceBusClientBuilder...");
 
-        return new ServiceBusClientBuilder()
-                .connectionString(azureProps.getConnectionString());
+        return new ManagementServiceBusClient(azureProps.getConnectionString());
     }
 
     @Bean

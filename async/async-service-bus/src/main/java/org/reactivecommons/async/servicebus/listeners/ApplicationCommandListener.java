@@ -1,6 +1,5 @@
 package org.reactivecommons.async.servicebus.listeners;
 
-import com.azure.messaging.servicebus.ServiceBusClientBuilder;
 import com.azure.messaging.servicebus.ServiceBusReceivedMessage;
 import lombok.extern.java.Log;
 import org.reactivecommons.api.domain.Command;
@@ -12,6 +11,7 @@ import org.reactivecommons.async.commons.converters.MessageConverter;
 import org.reactivecommons.async.commons.ext.CustomReporter;
 import org.reactivecommons.async.servicebus.HandlerResolver;
 import org.reactivecommons.async.servicebus.ServiceBusMessage;
+import org.reactivecommons.async.servicebus.communucations.ManagementServiceBusClient;
 import org.reactivecommons.async.servicebus.communucations.ReactiveMessageListener;
 import org.reactivecommons.async.servicebus.communucations.TopologyCreator;
 
@@ -40,7 +40,7 @@ public class ApplicationCommandListener extends GenericMessageListener {
                                       long autoDeleteOnIdle,
                                       boolean autoAck,
                                       DiscardNotifier discardNotifier,
-                                      ServiceBusClientBuilder serviceBusClientBuilder) {
+                                      ManagementServiceBusClient serviceBusClientBuilder) {
         super(topicName, subscriptionName, reactiveMessageListener, errorReporter, "command"
                 , withDLQRetry, maxDeliveryCount, delayBetweenRetry, messageLockDuration, messageTimeToLive,
                 discardNotifier, serviceBusClientBuilder, autoAck);

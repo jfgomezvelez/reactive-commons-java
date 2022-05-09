@@ -1,6 +1,5 @@
 package org.reactivecommons.async.servicebus.config;
 
-import com.azure.messaging.servicebus.ServiceBusClientBuilder;
 import lombok.RequiredArgsConstructor;
 import org.reactivecommons.async.commons.DiscardNotifier;
 import org.reactivecommons.async.commons.converters.MessageConverter;
@@ -8,8 +7,8 @@ import org.reactivecommons.async.commons.ext.CustomReporter;
 import org.reactivecommons.async.servicebus.HandlerResolver;
 import org.reactivecommons.async.servicebus.communucations.ReactiveMessageListener;
 import org.reactivecommons.async.servicebus.config.props.AsyncProps;
-import org.reactivecommons.async.servicebus.config.props.AzureProps;
 import org.reactivecommons.async.servicebus.listeners.ApplicationCommandListener;
+import org.reactivecommons.async.servicebus.communucations.ManagementServiceBusClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -31,7 +30,7 @@ public class CommandListenersConfig {
                                                                  MessageConverter converter,
                                                                  CustomReporter errorReporter,
                                                                  DiscardNotifier discardNotifier,
-                                                                 ServiceBusClientBuilder serviceBusClientBuilder) {
+                                                                 ManagementServiceBusClient serviceBusClientBuilder) {
         ApplicationCommandListener applicationCommandListener = new ApplicationCommandListener(
                 asyncProps.getDirect().getExchange(),
                 listener,

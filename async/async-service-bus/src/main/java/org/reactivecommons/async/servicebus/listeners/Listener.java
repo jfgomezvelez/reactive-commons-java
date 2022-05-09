@@ -1,10 +1,10 @@
 package org.reactivecommons.async.servicebus.listeners;
 
-import com.azure.core.amqp.AmqpRetryMode;
 import com.azure.core.amqp.AmqpRetryOptions;
 import com.azure.messaging.servicebus.*;
 import com.azure.messaging.servicebus.models.ServiceBusReceiveMode;
 import lombok.extern.java.Log;
+import org.reactivecommons.async.servicebus.communucations.ManagementServiceBusClient;
 import reactor.core.publisher.Flux;
 
 import java.time.Duration;
@@ -21,9 +21,9 @@ public class Listener {
     protected final Consumer<ServiceBusReceivedMessageContext> processMessage;
     private final int prefetchCount;
     private ServiceBusReceiverAsyncClient receiver;
-    private ServiceBusClientBuilder serviceBusClientBuilder;
+    private ManagementServiceBusClient serviceBusClientBuilder;
 
-    public Listener(String topicName, String subscriptionName, Consumer<ServiceBusReceivedMessageContext> processMessage, ServiceBusClientBuilder serviceBusClientBuilder) {
+    public Listener(String topicName, String subscriptionName, Consumer<ServiceBusReceivedMessageContext> processMessage, ManagementServiceBusClient serviceBusClientBuilder) {
         this.topicName = topicName;
         this.subscriptionName = subscriptionName;
         this.processMessage = processMessage;
@@ -31,7 +31,7 @@ public class Listener {
         this.serviceBusClientBuilder = serviceBusClientBuilder;
     }
 
-    public Listener(String topicName, String subscriptionName, int prefetchCount, ServiceBusClientBuilder serviceBusClientBuilder) {
+    public Listener(String topicName, String subscriptionName, int prefetchCount, ManagementServiceBusClient serviceBusClientBuilder) {
         this.topicName = topicName;
         this.subscriptionName = subscriptionName;
         this.processMessage = null;
@@ -43,7 +43,7 @@ public class Listener {
 
         CountDownLatch countdownLatch = new CountDownLatch(1);
 
-        ServiceBusProcessorClient processorClient = serviceBusClientBuilder
+        ServiceBusProcessorClient processorClient = serviceBusClientBuilder.getInstante()
                 .processor()
                 .topicName(topicName)
                 .subscriptionName(subscriptionName)
@@ -57,14 +57,13 @@ public class Listener {
         processorClient.start();
     }
 
-    public Flux<ServiceBusReceivedMessage> startAsync(boolean isAutoACK) {
-
+    private ServiceBusReceiverAsyncClient createFlux(boolean isAutoACK){
         AmqpRetryOptions amqpRetryOptions = new AmqpRetryOptions();
         amqpRetryOptions.setMaxRetries(86400000);
         amqpRetryOptions.setMaxDelay(Duration.ofHours(24));
         amqpRetryOptions.setTryTimeout(Duration.ofSeconds(5));
 
-        ServiceBusClientBuilder.ServiceBusReceiverClientBuilder serviceBusReceiverClientBuilder = serviceBusClientBuilder
+        ServiceBusClientBuilder.ServiceBusReceiverClientBuilder serviceBusReceiverClientBuilder = serviceBusClientBuilder.getInstante()
                 .retryOptions(amqpRetryOptions)
                 .receiver()
                 .topicName(topicName)
@@ -78,12 +77,19 @@ public class Listener {
                     .disableAutoComplete();
         }
 
-        this.receiver = serviceBusReceiverClientBuilder.buildAsyncClient();
+        return serviceBusReceiverClientBuilder.buildAsyncClient();
+    }
+
+    public Flux<ServiceBusReceivedMessage> startAsync(boolean isAutoACK) {
+
+        this.receiver = createFlux(isAutoACK);
 
         return receiver.receiveMessages()
                 .onErrorResume(error -> {
                     log.log(Level.SEVERE,"Error in startAsync unrecoverable ".concat(error.getMessage()), error);
-                    return Flux.empty();
+                    log.log(Level.WARNING,"renew Connection".concat(error.getMessage()));
+                    serviceBusClientBuilder.renewConnection();
+                    return startAsync(isAutoACK);
                 });
     }
 

@@ -1,7 +1,6 @@
 package org.reactivecommons.async.servicebus.listeners;
 
 import com.azure.core.amqp.models.AmqpAnnotatedMessage;
-import com.azure.messaging.servicebus.ServiceBusClientBuilder;
 import com.azure.messaging.servicebus.ServiceBusReceivedMessage;
 import lombok.extern.java.Log;
 import org.reactivecommons.async.api.handlers.registered.RegisteredQueryHandler;
@@ -11,6 +10,7 @@ import org.reactivecommons.async.commons.communications.Message;
 import org.reactivecommons.async.commons.converters.MessageConverter;
 import org.reactivecommons.async.commons.ext.CustomReporter;
 import org.reactivecommons.async.servicebus.HandlerResolver;
+import org.reactivecommons.async.servicebus.communucations.ManagementServiceBusClient;
 import org.reactivecommons.async.servicebus.communucations.ReactiveMessageListener;
 import org.reactivecommons.async.servicebus.communucations.ReactiveMessageSender;
 import org.reactivecommons.async.servicebus.communucations.TopologyCreator;
@@ -47,7 +47,7 @@ public class ApplicationQueryListener extends GenericMessageListener {
                                     long autoDeleteOnIdle,
                                     boolean autoACK,
                                     DiscardNotifier discardNotifier,
-                                    ServiceBusClientBuilder serviceBusClientBuilder) {
+                                    ManagementServiceBusClient serviceBusClientBuilder) {
         super(directTopicName, subscriptionName, reactiveMessageListener, customReporter, "query"
                 , withDLQRetry, maxDeliveryCount, delayBetweenRetry, messageLockDuration, messageTimeToLive,
                 discardNotifier, serviceBusClientBuilder, autoACK);

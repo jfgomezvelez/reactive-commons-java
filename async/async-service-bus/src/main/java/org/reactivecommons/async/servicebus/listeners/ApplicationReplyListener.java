@@ -1,14 +1,13 @@
 package org.reactivecommons.async.servicebus.listeners;
 
-import com.azure.messaging.servicebus.ServiceBusClientBuilder;
 import com.azure.messaging.servicebus.ServiceBusReceivedMessage;
-import com.azure.messaging.servicebus.models.ServiceBusReceiveMode;
 import lombok.Data;
 import lombok.extern.java.Log;
 import org.reactivecommons.async.commons.communications.Message;
 import org.reactivecommons.async.commons.reply.ReactiveReplyRouter;
 import org.reactivecommons.async.commons.utils.LoggerSubscriber;
 import org.reactivecommons.async.servicebus.ServiceBusMessage;
+import org.reactivecommons.async.servicebus.communucations.ManagementServiceBusClient;
 import org.reactivecommons.async.servicebus.communucations.ReactiveMessageListener;
 import org.reactivecommons.async.servicebus.communucations.TopologyCreator;
 import reactor.core.publisher.Flux;
@@ -31,7 +30,7 @@ public class ApplicationReplyListener {
     private final long messageLockDuration;
     private final long messageTimeToLive;
     private final long autoDeleteOnIdle;
-    private final ServiceBusClientBuilder serviceBusClientBuilder;
+    private final ManagementServiceBusClient serviceBusClientBuilder;
     private volatile Flux<ServiceBusReceivedMessage> deliveryFlux;
     private final ReactiveMessageListener reactiveMessageListener;
 
@@ -45,7 +44,7 @@ public class ApplicationReplyListener {
             long messageTimeToLive,
             long autoDeleteOnIdle,
             ReactiveMessageListener reactiveMessageListener,
-            ServiceBusClientBuilder serviceBusClientBuilder
+            ManagementServiceBusClient serviceBusClientBuilder
     ) {
         this.router = router;
         this.subscriptionName = subscriptionName;

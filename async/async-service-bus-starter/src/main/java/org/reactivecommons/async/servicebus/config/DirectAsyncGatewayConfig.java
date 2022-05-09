@@ -1,6 +1,5 @@
 package org.reactivecommons.async.servicebus.config;
 
-import com.azure.messaging.servicebus.ServiceBusClientBuilder;
 import lombok.RequiredArgsConstructor;
 import org.reactivecommons.async.commons.config.BrokerConfig;
 import org.reactivecommons.async.commons.converters.MessageConverter;
@@ -11,6 +10,7 @@ import org.reactivecommons.async.servicebus.communucations.ReactiveMessageSender
 import org.reactivecommons.async.servicebus.config.props.AsyncProps;
 import org.reactivecommons.async.servicebus.config.props.BrokerConfigProps;
 import org.reactivecommons.async.servicebus.listeners.ApplicationReplyListener;
+import org.reactivecommons.async.servicebus.communucations.ManagementServiceBusClient;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
@@ -42,7 +42,7 @@ public class DirectAsyncGatewayConfig {
                                                 BrokerConfig config,
                                                 ReactiveMessageListener listener,
                                                 ReactiveMessageListener reactiveMessageListener,
-                                                ServiceBusClientBuilder serviceBusClientBuilder) {
+                                                ManagementServiceBusClient serviceBusClientBuilder) {
         final ApplicationReplyListener replyListener = new ApplicationReplyListener(
                 router,
                 listener,

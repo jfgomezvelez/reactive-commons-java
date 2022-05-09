@@ -1,6 +1,5 @@
 package org.reactivecommons.async.servicebus.config;
 
-import com.azure.messaging.servicebus.ServiceBusClientBuilder;
 import lombok.RequiredArgsConstructor;
 import org.reactivecommons.async.commons.DiscardNotifier;
 import org.reactivecommons.async.commons.converters.MessageConverter;
@@ -10,6 +9,7 @@ import org.reactivecommons.async.servicebus.communucations.ReactiveMessageListen
 import org.reactivecommons.async.servicebus.communucations.ReactiveMessageSender;
 import org.reactivecommons.async.servicebus.config.props.AsyncProps;
 import org.reactivecommons.async.servicebus.listeners.ApplicationQueryListener;
+import org.reactivecommons.async.servicebus.communucations.ManagementServiceBusClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -34,7 +34,7 @@ public class QueryListenerConfig {
             MessageConverter converter,
             CustomReporter errorReporter,
             DiscardNotifier discardNotifier,
-            ServiceBusClientBuilder serviceBusClientBuilder) {
+            ManagementServiceBusClient serviceBusClientBuilder) {
 
         final ApplicationQueryListener applicationQueryListener = new ApplicationQueryListener(
                 reactiveMessageSender,

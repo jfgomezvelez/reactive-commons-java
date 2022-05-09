@@ -1,16 +1,15 @@
 package org.reactivecommons.async.servicebus.listeners;
 
 
-import com.azure.messaging.servicebus.ServiceBusClientBuilder;
 import com.azure.messaging.servicebus.ServiceBusReceivedMessage;
 import com.azure.messaging.servicebus.ServiceBusReceiverAsyncClient;
-import com.azure.messaging.servicebus.models.ServiceBusReceiveMode;
 import lombok.extern.java.Log;
 import org.reactivecommons.async.commons.DiscardNotifier;
 import org.reactivecommons.async.commons.communications.Message;
 import org.reactivecommons.async.commons.ext.CustomReporter;
 import org.reactivecommons.async.commons.utils.LoggerSubscriber;
 import org.reactivecommons.async.servicebus.ServiceBusMessage;
+import org.reactivecommons.async.servicebus.communucations.ManagementServiceBusClient;
 import org.reactivecommons.async.servicebus.communucations.ReactiveMessageListener;
 import org.reactivecommons.async.servicebus.communucations.TopologyCreator;
 import reactor.core.publisher.Flux;
@@ -49,7 +48,7 @@ public abstract class GenericMessageListener {
     protected final long messageTimeToLive;
     private Listener listener;
     private DiscardNotifier discardNotifier;
-    private ServiceBusClientBuilder serviceBusClientBuilder;
+    private ManagementServiceBusClient serviceBusClientBuilder;
 
     public GenericMessageListener(
             String topicName,
@@ -63,7 +62,7 @@ public abstract class GenericMessageListener {
             long messageLockDuration,
             long messageTimeToLive,
             DiscardNotifier discardNotifier,
-            ServiceBusClientBuilder serviceBusClientBuilder,
+            ManagementServiceBusClient serviceBusClientBuilder,
             boolean isAutoACK) {
         this.topicName = topicName;
         this.subscriptionName = subscriptionName;
