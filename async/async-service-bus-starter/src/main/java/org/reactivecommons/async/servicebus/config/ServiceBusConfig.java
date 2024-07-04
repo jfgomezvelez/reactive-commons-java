@@ -79,7 +79,6 @@ public class ServiceBusConfig {
     @Bean
     public ManagementClient getManagementClient(AzureProps azureProps) {
         log.info("Creando objeto de ManagementClient...");
-        //String connectionString = "Endpoint=sb://reactivecommons-servicebus-sofka.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=dqaZiNhGjICV4ZFflQIrWwQ5eCftCMGIwSzqIl+Ib/A=";
         ConnectionStringBuilder connectionStringBuilder = new ConnectionStringBuilder(azureProps.getConnectionString());
         return new ManagementClient(connectionStringBuilder);
     }
