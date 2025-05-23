@@ -8,6 +8,7 @@ buildscript {
     dependencies {
         classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
         classpath("com.github.ben-manes:gradle-versions-plugin:$gradleVersionsVersion")
+        classpath ('org.ysb33r.gradle:grolifant:0.17.0')
     }
 }
 
